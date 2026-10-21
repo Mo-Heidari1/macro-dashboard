@@ -85,7 +85,9 @@ def main():
     if args.weekend_only:
         rows = rows[rows["Date"].dt.dayofweek >= 5]
 
-    live = fetch_years(range(start.year, end.year + 1), columns)
+    # Start a week early so a Sunday on Jan 1-3 can use the prior year's close.
+    first_year = (start - pd.Timedelta(days=7)).year
+    live = fetch_years(range(first_year, end.year + 1), columns)
     aligned = align_to_history(rows["Date"], live)
     updated, changes = backfill_columns(history, aligned, columns, args.mode)
 
