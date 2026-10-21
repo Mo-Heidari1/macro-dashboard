@@ -70,9 +70,11 @@ python -m pytest
 
 ## Keeping the data current
 
-- **Treasury yields:** `python scripts/update_yields.py YOUR_FRED_API_KEY`
-  appends the latest Treasury.gov curves and the FRED effective Fed Funds rate
-  (free key: https://fred.stlouisfed.org/docs/api/api_key.html).
+- **Treasury yields:** `python scripts/update_yields.py` appends the latest
+  Treasury.gov curves and the FRED effective Fed Funds rate. It reads a free
+  FRED key (https://fred.stlouisfed.org/docs/api/api_key.html) from the
+  `FRED_API_KEY` environment variable or `.streamlit/secrets.toml`; keys are
+  never passed on the command line.
 - **ISM Manufacturing:** ISM publishes no free, terms-compliant API, so each
   month's Report On Business figures are entered by hand — either in the ISM
   page's "Add This Month's Data" tab (local data only) or with

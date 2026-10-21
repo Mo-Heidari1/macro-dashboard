@@ -14,6 +14,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 DATA_DIR = os.path.join(ROOT, "data")
 DATA_LOCAL = os.path.join(DATA_DIR, "local")
 DATA_SAMPLE = os.path.join(DATA_DIR, "sample")
+SECRETS_FILE = os.path.join(ROOT, ".streamlit", "secrets.toml")  # git-ignored
 
 
 def local_path(filename: str) -> str:

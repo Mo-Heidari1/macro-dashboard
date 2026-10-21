@@ -104,21 +104,3 @@ def fetch_fred_series(
     df["Date"] = pd.to_datetime(df["date"])
     df[name] = pd.to_numeric(df["value"], errors="coerce")
     return df[["Date", name]]
-
-
-# ---------- legacy ----------
-
-
-def append_to_history(
-    history_path: str, new_rows: pd.DataFrame, save_path: str | None = None
-):
-    """
-    Legacy pickle-based append, carried over unchanged from live_sources.py.
-    Unused; scheduled for removal on fix/data-integrity (engineering rule 1).
-    """
-    history = pd.read_pickle(history_path)
-    combined = pd.concat([history, new_rows], ignore_index=True)
-    combined = combined.drop_duplicates(subset="Date", keep="last")
-    combined = combined.sort_values("Date").reset_index(drop=True)
-    combined.to_pickle(save_path or history_path)
-    return combined
