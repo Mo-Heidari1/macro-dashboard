@@ -227,3 +227,10 @@ def test_sector_rankings_break_ties_by_industry_regardless_of_input_order():
     for seed in range(5):
         shuffled = df.sample(frac=1, random_state=seed)
         assert sector_rankings(shuffled, "2026-06-01")["Industry"].tolist() == expected
+
+
+def test_zscore_needs_ten_years(sample):
+    assert cfg.ZSCORE_MIN_PERIODS == 120
+    assert get_signal(sample)["zscore"] is None  # 36 months only
+    long = _pmi_frame(list(np.linspace(45, 55, 120)))
+    assert get_signal(long)["zscore"] is not None

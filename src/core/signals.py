@@ -14,6 +14,8 @@ REGIONS = ("US", "EU", "China", "Global")
 TYPES = ("leading", "coincident", "lagging")
 DEFAULT_DIRECTION_LABELS = {"up": "improving", "down": "deteriorating", "flat": "flat"}
 
+ZSCORE_NA_LABEL = "n/a: needs 10y history"
+
 REQUIRED_KEYS = (
     "indicator",
     "region",
@@ -61,6 +63,12 @@ def direction_label(
     if change < -band:
         return labels["down"]
     return labels["flat"]
+
+
+def format_zscore(zscore: float | None) -> str:
+    """Z-score for display: 2 dp with sign, or ZSCORE_NA_LABEL when the
+    module had too little history to compute one (e.g. on sample data)."""
+    return ZSCORE_NA_LABEL if zscore is None else f"{zscore:+.2f}"
 
 
 def validate_signal(

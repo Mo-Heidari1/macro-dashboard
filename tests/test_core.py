@@ -9,7 +9,12 @@ import pytest
 
 from src.core import charts, paths
 from src.core.loaders import parse_treasury_curve
-from src.core.signals import DEFAULT_DIRECTION_LABELS, direction_label, validate_signal
+from src.core.signals import (
+    DEFAULT_DIRECTION_LABELS,
+    direction_label,
+    format_zscore,
+    validate_signal,
+)
 from src.core.transforms import (
     change_over,
     last_complete_row,
@@ -246,3 +251,9 @@ def test_parse_treasury_curve_ignores_header_case():
     assert list(out.columns) == ["Date", "5yr TIPS", "10yr TIPS"]
     assert out["Date"].iloc[0] == pd.Timestamp("2026-10-20")
     assert out["10yr TIPS"].iloc[0] == 2.77
+
+
+def test_format_zscore():
+    assert format_zscore(None) == "n/a: needs 10y history"
+    assert format_zscore(0.04) == "+0.04"
+    assert format_zscore(-1.234) == "-1.23"

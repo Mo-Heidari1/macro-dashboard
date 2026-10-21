@@ -15,10 +15,12 @@ import pandas as pd
 import streamlit as st
 
 from src.core import charts, paths
+from src.core.signals import format_zscore
 from src.core.transforms import last_complete_row, last_valid
 from src.modules.ism_manufacturing import config as cfg
 from src.modules.ism_manufacturing.calculations import (
     classify,
+    get_signal,
     heatmap_data,
     load_ism_history,
     load_ism_sectors,
@@ -56,6 +58,15 @@ if history_is_sample:
 col1, col2 = st.columns([1, 3])
 col1.metric("Headline PMI", f"{latest_pmi:.1f}", classify(latest_pmi))
 col1.caption(f"As of {pmi_date:%B %Y}")
+sig = get_signal(df)
+s1, s2, s3 = col2.columns(3)
+s1.metric("Regime", sig["regime"])
+s2.metric("Momentum (3m vs prior 3m)", sig["direction"])
+s3.metric("Z-score vs 10y", format_zscore(sig["zscore"]))
+col2.caption(
+    sig["market_read"]
+    + (" Extreme reading (above 55 or below 45)." if sig["extreme"] else "")
+)
 
 tab_overview, tab_heatmap, tab_sectors, tab_composite, tab_update = st.tabs(
     [

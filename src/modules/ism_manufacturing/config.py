@@ -65,7 +65,7 @@ DIRECTION_BAND = 1.0  # averages within ±1.0 point of each other count as flat
 DIRECTION_LABELS = {"up": "improving", "down": "deteriorating", "flat": "flat"}
 
 ZSCORE_WINDOW_MONTHS = 120  # trailing 10 years
-ZSCORE_MIN_PERIODS = 36
+ZSCORE_MIN_PERIODS = 120  # a full 10 years; the 36-month sample shows n/a
 
 # Regime quadrant = PMI level vs 50 x momentum trend, with hysteresis:
 # - momentum outside ±DIRECTION_BAND: trend = sign of the 3m-vs-prior-3m change

@@ -6,9 +6,11 @@ Implied Inflation.
 import streamlit as st
 
 from src.core import charts
+from src.core.signals import format_zscore
 from src.core.transforms import last_complete_row
 from src.modules.treasury_yields.calculations import (
     curve_on_date,
+    get_signal,
     implied_inflation,
     load_history,
     snapshot_dates,
@@ -34,6 +36,17 @@ st.caption(
     "changes are measured over calendar windows (WoW 7, MoM 28, QoQ 91, YoY 364 days)"
 )
 st.caption(f"Source: {SOURCE}")
+
+sig = get_signal(df)
+k1, k2, k3, k4 = st.columns(4)
+k1.metric("2s10s spread", f"{sig['level']:+.2f} pp")
+k2.metric(
+    "Change over 4 weeks",
+    "n/a" if sig["change"] is None else f"{sig['change'] * 100:+.0f} bp",
+)
+k3.metric("Z-score vs 10y", format_zscore(sig["zscore"]))
+k4.metric("Curve regime", sig["regime"], sig["direction"], delta_color="off")
+st.caption(f"As of {sig['as_of']}. {sig['market_read']}")
 
 tab_summary, tab_curve, tab_spread, tab_inflation = st.tabs(
     ["Summary", "Curve Analysis", "Spread Analysis", "Implied Inflation"]
