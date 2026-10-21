@@ -1,8 +1,11 @@
-streamlit
-plotly
-pandas
-numpy
-requests
-openpyxl
-matplotlib
-pytest
+# Pinned for Python 3.12 (the versions the test suite runs against).
+# On Streamlit Community Cloud, select Python 3.12 under Advanced settings.
+streamlit==1.37.1
+plotly==5.24.1
+pandas==2.2.2
+numpy==1.26.4
+requests==2.32.3
+openpyxl==3.1.5
+matplotlib==3.9.2
+pytest==7.4.4
+ruff==0.17.1

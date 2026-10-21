@@ -68,6 +68,9 @@ python -m streamlit run Home.py
 python -m pytest
 ```
 
+Dependencies are pinned for Python 3.12 (`requirements.txt`). On Streamlit
+Community Cloud, select Python 3.12 under the app's advanced settings.
+
 ## Keeping the data current
 
 - **Treasury yields:** `python scripts/update_yields.py` appends the latest
