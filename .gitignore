@@ -1,0 +1,27 @@
+# Proprietary / full data (ISM, S&P Global/RatingDog PMI, NFIB) — local only
+data/local/
+*.xlsx
+*.xlsm
+
+# Pre-refactor locations of the proprietary ISM data (never enter history)
+/ism_history.csv
+/ism_sectors.csv
+
+# Secrets
+.streamlit/secrets.toml
+.env
+
+# Working notes that reference course material
+ISM_Claude_Code_Prompt.md
+
+# Machine-specific Claude Code config (launch.json holds a local interpreter path)
+.claude/
+
+# Python / tooling
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
