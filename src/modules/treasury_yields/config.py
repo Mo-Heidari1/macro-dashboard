@@ -104,6 +104,9 @@ TIPS_COL_MAP = {
     "20 Yr": "20yr TIPS",
     "30 Yr": "30yr TIPS",
 }
+# Weekend-dated (Sunday) weekly rows carry the last close on or before them.
+WEEKEND_MAX_LAG_DAYS = 3
+
 FED_FUNDS_SERIES = "EFFR"
 FED_FUNDS_START = "1954-01-01"
 

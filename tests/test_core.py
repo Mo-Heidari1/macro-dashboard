@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 from src.core import charts, paths
+from src.core.loaders import parse_treasury_curve
 from src.core.signals import DEFAULT_DIRECTION_LABELS, direction_label, validate_signal
 from src.core.transforms import (
     change_at_offset,
@@ -189,3 +190,17 @@ def test_multi_line_chart_dash_and_mode():
     )
     assert [t.mode for t in fig.data] == ["lines+markers", "lines"]
     assert fig.data[1].line.dash == "dot" and fig.layout.xaxis.type == "log"
+
+
+# ---------- loaders ----------
+
+
+def test_parse_treasury_curve_ignores_header_case():
+    # Treasury's real-yield CSV uses "10 YR"; the nominal CSV uses "10 Yr".
+    raw = pd.DataFrame(
+        {"Date": ["10/20/2026"], "5 YR": [2.55], "10 YR": [2.77], "1.5 Month": [3.9]}
+    )
+    out = parse_treasury_curve(raw, {"5 Yr": "5yr TIPS", "10 Yr": "10yr TIPS"})
+    assert list(out.columns) == ["Date", "5yr TIPS", "10yr TIPS"]
+    assert out["Date"].iloc[0] == pd.Timestamp("2026-10-20")
+    assert out["10yr TIPS"].iloc[0] == 2.77

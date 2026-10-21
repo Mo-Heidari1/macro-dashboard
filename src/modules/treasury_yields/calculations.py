@@ -180,3 +180,52 @@ def get_signal(df: pd.DataFrame) -> dict:
         "regime": regime,
         "market_read": cfg.MARKET_READ[regime],
     }
+
+
+def align_to_history(dates: pd.Series, live: pd.DataFrame) -> pd.DataFrame:
+    """
+    Treasury.gov observations aligned to history dates, one row per date.
+
+    Weekday dates take the observation for that exact day (a market holiday
+    stays empty). Weekend-dated rows (the source workbook's Sunday weekly
+    snapshots) take the last observation on or before that date, within
+    WEEKEND_MAX_LAG_DAYS, i.e. the prior Friday's close.
+    """
+    left = pd.DataFrame({"Date": pd.to_datetime(dates)}).sort_values("Date")
+    live = live.sort_values("Date")
+    exact = left.merge(live, on="Date", how="left")
+    carried = pd.merge_asof(
+        left,
+        live,
+        on="Date",
+        direction="backward",
+        tolerance=pd.Timedelta(days=cfg.WEEKEND_MAX_LAG_DAYS),
+    )
+    weekend = (left["Date"].dt.dayofweek >= 5).to_numpy()
+    out = exact.copy()
+    for col in live.columns.drop("Date"):
+        out.loc[weekend, col] = carried.loc[weekend, col].to_numpy()
+    return out
+
+
+def backfill_columns(
+    history: pd.DataFrame, aligned: pd.DataFrame, columns: list[str], mode: str
+) -> tuple[pd.DataFrame, dict]:
+    """
+    Write `aligned` source values into `history` for the aligned dates.
+    mode "fill" only fills empty cells; "overwrite" replaces values that
+    differ at 2 dp. Returns (updated copy of history, {column: cells changed}).
+    """
+    out = history.copy()
+    pos = out.reset_index().set_index("Date")["index"].loc[aligned["Date"]].to_numpy()
+    changes = {}
+    for col in columns:
+        new = pd.Series(aligned[col].to_numpy(), index=pos)
+        old = out.loc[pos, col]
+        if mode == "fill":
+            mask = old.isna() & new.notna()
+        else:
+            mask = new.notna() & (old.isna() | (old.round(2) != new.round(2)))
+        out.loc[mask[mask].index, col] = new[mask]
+        changes[col] = int(mask.sum())
+    return out, changes

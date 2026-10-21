@@ -7,6 +7,8 @@ import pytest
 from src.core.signals import validate_signal
 from src.modules.treasury_yields import config as cfg
 from src.modules.treasury_yields.calculations import (
+    align_to_history,
+    backfill_columns,
     curve_on_date,
     curve_regime,
     get_signal,
@@ -141,3 +143,66 @@ def test_signal_schema_on_committed_data(history):
 def test_signal_raises_without_any_complete_row():
     with pytest.raises(ValueError):
         get_signal(_frame(["2026-01-04"], **{"2yr": [4.0]}))
+
+
+# ---------- Treasury.gov alignment and backfill ----------
+
+
+def _live(dates, **cols) -> pd.DataFrame:
+    return pd.DataFrame({"Date": pd.to_datetime(dates), **cols})
+
+
+def test_align_weekday_exact_and_sunday_to_friday():
+    live = _live(
+        ["2026-06-25", "2026-06-26", "2026-09-04", "2026-09-08"],
+        **{"10yr TIPS": [2.1, 2.18, 2.3, 2.4]},
+    )
+    dates = pd.to_datetime(["2026-06-26", "2026-06-28", "2026-09-07", "2026-09-08"])
+    out = align_to_history(pd.Series(dates), live).set_index("Date")["10yr TIPS"]
+    assert out["2026-06-26"] == 2.18  # weekday: same day
+    assert out["2026-06-28"] == 2.18  # Sunday: prior Friday's close
+    assert pd.isna(out["2026-09-07"])  # Labor Day: no observation, stays empty
+    assert out["2026-09-08"] == 2.4
+
+
+def test_align_sunday_ignores_stale_observations():
+    live = _live(["2026-06-22"], **{"3mo": [3.8]})  # Monday, 6 days before
+    out = align_to_history(pd.Series(pd.to_datetime(["2026-06-28"])), live)
+    assert pd.isna(out["3mo"].iloc[0])
+
+
+def test_backfill_fill_only_touches_empty_cells():
+    hist = _frame(["2026-01-02", "2026-01-05"], **{"10yr TIPS": [1.9, np.nan]})
+    aligned = _live(["2026-01-02", "2026-01-05"], **{"10yr TIPS": [1.95, 1.96]})
+    out, changes = backfill_columns(hist, aligned, ["10yr TIPS"], "fill")
+    assert list(out["10yr TIPS"]) == [1.9, 1.96]
+    assert changes == {"10yr TIPS": 1}
+
+
+def test_backfill_overwrite_replaces_differing_values():
+    hist = _frame(["2024-01-07", "2024-01-14"], **{"3mo": [5.24, 5.45]})
+    aligned = _live(["2024-01-07", "2024-01-14"], **{"3mo": [5.47, 5.45]})
+    out, changes = backfill_columns(hist, aligned, ["3mo"], "overwrite")
+    assert list(out["3mo"]) == [5.47, 5.45]
+    assert changes == {"3mo": 1}
+
+
+@pytest.mark.parametrize(
+    "date, tenor, expected",
+    [
+        # Treasury.gov daily real yield curve rates (backfilled 2026 weekday rows).
+        ("2026-01-02", "10yr TIPS", 1.94),
+        ("2026-09-11", "10yr TIPS", 2.60),
+        ("2026-09-14", "5yr TIPS", 2.40),
+        ("2026-09-14", "30yr TIPS", 3.05),
+    ],
+)
+def test_known_tips_values(history, date, tenor, expected):
+    row = history.loc[history["Date"] == pd.Timestamp(date)].iloc[0]
+    assert row[tenor] == pytest.approx(expected)
+
+
+def test_daily_rows_have_tips_where_treasury_published():
+    h = load_history()
+    daily_2026 = h[(h["Date"].dt.year == 2026) & h["10yr"].notna()]
+    assert daily_2026["10yr TIPS"].notna().all()
