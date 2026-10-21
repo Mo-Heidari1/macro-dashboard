@@ -13,6 +13,8 @@ Sources:
     https://fred.stlouisfed.org/docs/api/api_key.html
 """
 
+import io
+
 import pandas as pd
 import requests
 
@@ -51,16 +53,34 @@ def load_dataset(filename: str) -> tuple[pd.DataFrame, bool]:
 # ---------- Treasury.gov ----------
 
 
-def fetch_treasury_curve(year: int, col_map: dict, real: bool = False) -> pd.DataFrame:
+def parse_treasury_curve(raw: pd.DataFrame, col_map: dict) -> pd.DataFrame:
+    """
+    Keep Date plus the columns in `col_map`, renamed by it. Headers are
+    matched ignoring case and surrounding spaces: Treasury labels nominal
+    tenors "10 Yr" but real (TIPS) tenors "10 YR".
+    """
+    wanted = {k.strip().upper(): v for k, v in col_map.items()}
+    rename = {"Date": "Date"}
+    for col in raw.columns:
+        key = str(col).strip().upper()
+        if key in wanted:
+            rename[col] = wanted[key]
+    out = raw[list(rename)].rename(columns=rename)
+    out["Date"] = pd.to_datetime(out["Date"])
+    return out
+
+
+def fetch_treasury_curve(
+    year: int, col_map: dict, real: bool = False, timeout: int = 60
+) -> pd.DataFrame:
     """
     Daily par yield curve for `year` from Treasury.gov (nominal, or real/TIPS
     if `real`), keeping Date plus the columns in `col_map`, renamed by it.
     """
     url = (TREASURY_TIPS_URL if real else TREASURY_NOMINAL_URL).format(year=year)
-    raw = pd.read_csv(url)
-    raw["Date"] = pd.to_datetime(raw["Date"])
-    keep = {"Date": "Date", **col_map}
-    return raw[[c for c in keep if c in raw.columns]].rename(columns=keep)
+    resp = requests.get(url, timeout=timeout)
+    resp.raise_for_status()
+    return parse_treasury_curve(pd.read_csv(io.StringIO(resp.text)), col_map)
 
 
 # ---------- FRED ----------
@@ -84,21 +104,3 @@ def fetch_fred_series(
     df["Date"] = pd.to_datetime(df["date"])
     df[name] = pd.to_numeric(df["value"], errors="coerce")
     return df[["Date", name]]
-
-
-# ---------- legacy ----------
-
-
-def append_to_history(
-    history_path: str, new_rows: pd.DataFrame, save_path: str | None = None
-):
-    """
-    Legacy pickle-based append, carried over unchanged from live_sources.py.
-    Unused; scheduled for removal on fix/data-integrity (engineering rule 1).
-    """
-    history = pd.read_pickle(history_path)
-    combined = pd.concat([history, new_rows], ignore_index=True)
-    combined = combined.drop_duplicates(subset="Date", keep="last")
-    combined = combined.sort_values("Date").reset_index(drop=True)
-    combined.to_pickle(save_path or history_path)
-    return combined

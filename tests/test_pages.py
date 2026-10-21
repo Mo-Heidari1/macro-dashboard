@@ -40,3 +40,26 @@ def test_page_renders_on_local(page, has_local_ism):
         pytest.skip("licensed full ISM history not present")
     at = _run(page)
     assert not any("Sample data" in i.value for i in at.info)
+
+
+@pytest.mark.parametrize("page", PAGES)
+def test_every_page_shows_as_of_and_source(sample_only, page):
+    at = _run(page)
+    captions = " ".join(c.value for c in at.caption)
+    assert "As of" in captions
+    assert "Source" in captions
+
+
+def test_ism_sample_shows_zscore_na(sample_only):
+    at = _run("pages/2_ISM_Manufacturing.py")
+    z = next(m for m in at.metric if m.label == "Z-score vs 10y")
+    assert z.value == "n/a: needs 10y history"
+
+
+def test_ism_local_shows_numeric_zscore(has_local_ism):
+    if not has_local_ism:
+        pytest.skip("licensed full ISM history not present")
+    at = _run("pages/2_ISM_Manufacturing.py")
+    z = next(m for m in at.metric if m.label == "Z-score vs 10y")
+    assert z.value != "n/a: needs 10y history"
+    float(z.value)

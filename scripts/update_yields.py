@@ -2,9 +2,12 @@
 Refresh the Treasury yields history with the latest public data.
 
 Usage:
-    python scripts/update_yields.py YOUR_FRED_API_KEY
+    python scripts/update_yields.py
 
-Get a free FRED API key at: https://fred.stlouisfed.org/docs/api/api_key.html
+Needs a free FRED API key (https://fred.stlouisfed.org/docs/api/api_key.html)
+in the FRED_API_KEY environment variable or in .streamlit/secrets.toml as
+FRED_API_KEY = "...". Keys are never accepted on the command line, where
+they would end up in shell history.
 
 What it does:
 1. Pulls the current year's nominal and TIPS (real) par yield curves from Treasury.gov
@@ -13,6 +16,7 @@ What it does:
    (or data/local/ if a local copy exists), deduping on Date
 """
 
+import argparse
 import os
 import sys
 
@@ -21,6 +25,7 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.core import paths
+from src.core.credentials import MissingSecretError, get_secret
 from src.core.loaders import fetch_fred_series, fetch_treasury_curve
 from src.modules.treasury_yields import config as cfg
 
@@ -46,12 +51,21 @@ def build_latest_snapshot(year: int, fred_api_key: str) -> pd.DataFrame:
     return merged
 
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: python scripts/update_yields.py YOUR_FRED_API_KEY")
-        sys.exit(1)
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """No positional arguments: an API key passed here is rejected."""
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    return parser.parse_args(argv)
 
-    fred_api_key = sys.argv[1]
+
+def main():
+    parse_args()
+    try:
+        fred_api_key = get_secret("FRED_API_KEY")
+    except MissingSecretError as exc:
+        print(exc)
+        sys.exit(1)
     year = pd.Timestamp.today().year
     csv_path, _ = paths.resolve_data_file(cfg.HISTORY_FILE)
 

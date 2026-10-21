@@ -13,8 +13,10 @@ import pandas as pd
 import streamlit as st
 
 from src.core import charts, paths
+from src.core.transforms import change_over, last_complete_row, last_valid
 from src.modules.ism_manufacturing import config as ism_cfg
 from src.modules.ism_manufacturing.calculations import classify, load_ism_history
+from src.modules.treasury_yields import config as yields_cfg
 from src.modules.treasury_yields.calculations import load_history
 
 st.set_page_config(page_title="Macro Dashboard", layout="wide")
@@ -25,19 +27,23 @@ yields_df = load_history()
 ism_df = load_ism_history()
 _, ism_is_sample = paths.resolve_data_file(ism_cfg.HISTORY_FILE)
 
+# Each figure comes from its series' last populated row, never a blank tail.
+ten_date, ten_yield = last_valid(yields_df, "10yr")
+curve_row = yields_df.iloc[last_complete_row(yields_df, ["2yr", "10yr"])]
+pmi_date, pmi = last_valid(ism_df, "PMI")
+
 col1, col2, col3 = st.columns(3)
 col1.metric(
     "10yr Treasury Yield",
-    f"{yields_df.iloc[-1]['10yr']:.2f}%",
-    f"{yields_df.iloc[-1]['10yr'] - yields_df.iloc[-2]['10yr']:+.2f} pp WoW",
+    f"{ten_yield:.2f}%",
+    f"{change_over(yields_df, '10yr', pd.Timedelta(days=7)):+.2f} pp WoW",
 )
-spread_2s10s = yields_df.iloc[-1]["10yr"] - yields_df.iloc[-1]["2yr"]
+col1.caption(f"As of {ten_date:%Y-%m-%d}")
+spread_2s10s = curve_row["10yr"] - curve_row["2yr"]
 col2.metric("2s10s Spread", f"{spread_2s10s:+.2f} pp")
-col3.metric(
-    "ISM Manufacturing PMI",
-    f"{ism_df.iloc[-1]['PMI']:.1f}",
-    classify(ism_df.iloc[-1]["PMI"]),
-)
+col2.caption(f"As of {curve_row['Date']:%Y-%m-%d}")
+col3.metric("ISM Manufacturing PMI", f"{pmi:.1f}", classify(pmi))
+col3.caption(f"As of {pmi_date:%B %Y}")
 if ism_is_sample:
     col3.caption(
         f"Sample data: last {ism_cfg.SAMPLE_MONTHS} months of the published headline PMI."
@@ -80,3 +86,4 @@ else:
 
 st.divider()
 st.markdown("**Pages:** use the sidebar to open Treasury Yields or ISM Manufacturing.")
+st.caption(f"Sources: {yields_cfg.SOURCE}; {ism_cfg.SOURCE}.")

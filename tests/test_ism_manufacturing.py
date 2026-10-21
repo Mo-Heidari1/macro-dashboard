@@ -16,6 +16,7 @@ from src.modules.ism_manufacturing.calculations import (
     load_ism_sectors,
     pmi_regime,
     recompute_pmi_from_subindices,
+    regime_history,
     sector_rankings,
     summary_table,
 )
@@ -149,8 +150,37 @@ def test_signal_extreme_flag(level, extreme):
 
 
 def test_pmi_regime_edges():
-    assert pmi_regime(50.0, -0.5) == "Slowdown"  # exactly 50 counts as above
-    assert pmi_regime(49.9, 0.0) == "Recovery"  # zero momentum counts as rising
+    assert pmi_regime(50.0, "falling") == "Slowdown"  # exactly 50 counts as above
+    assert pmi_regime(49.9, "rising") == "Recovery"
+    # first stable month with zero momentum and no prior trend counts as rising
+    assert get_signal(_pmi_frame([49.9] * 6))["regime"] == "Recovery"
+
+
+def test_stable_momentum_keeps_prior_regime():
+    # decisive rise (Expansion), then the 3m average stalls and dips by 0.9
+    values = [50, 50, 50, 54, 55, 56, 55.5, 55.0, 54.6, 54.2]
+    hist = regime_history(_pmi_frame(values))
+    assert hist["regime"].iloc[5:8].tolist() == ["Expansion"] * 3
+    assert not hist["stable"].iloc[7]
+    last = hist.iloc[-1]
+    assert last["momentum"] == pytest.approx(-0.9) and bool(last["stable"])
+    assert last["regime"] == "Expansion"  # old rule (sign only) gave Slowdown
+    sig = get_signal(_pmi_frame(values))
+    assert (sig["regime"], sig["direction"]) == ("Expansion", "flat")
+    assert sig["market_read"].startswith("Momentum stable")
+    assert sig["market_read"] == cfg.MARKET_READ_STABLE["Expansion"]
+
+
+def test_stable_momentum_keeps_trend_when_level_crosses_50():
+    hist = regime_history(_pmi_frame([51, 50.6, 50.2, 49.8, 50.4, 50.2, 49.9]))
+    assert hist["stable"].iloc[5:].all()
+    # first stable month takes the sign of its change (falling); next keeps it
+    assert hist["regime"].iloc[5:].tolist() == ["Slowdown", "Contraction"]
+
+
+def test_decisive_month_uses_regular_market_read():
+    sig = get_signal(_pmi_frame([50, 50, 50, 54, 55, 56]))
+    assert sig["market_read"] == cfg.MARKET_READ["Expansion"]
 
 
 def test_signal_skips_month_without_headline():
@@ -165,3 +195,42 @@ def test_signal_schema_on_sample(sample):
     sig = get_signal(sample)
     assert validate_signal(sig, cfg.DIRECTION_LABELS, cfg.REGIME_LABELS) == []
     assert sig["as_of"] == "2026-06-01" and sig["level"] == 53.3
+
+
+def test_summary_yoy_uses_calendar_months_across_a_gap():
+    df = _pmi_frame([50.0, 51.0, 52.0], start="2025-05-01")
+    df.loc[2, "Date"] = pd.Timestamp("2026-06-01")  # 12 months after 2025-06-01
+    row = summary_table(df).set_index("Sub-Index").loc["PMI"]
+    assert row["YoY"] == pytest.approx(1.0)  # vs June 2025, not the row before
+    assert pd.isna(row["MoM"])  # May 2026 missing: no value within the window
+
+
+def test_summary_reports_each_series_last_month():
+    df = _pmi_frame([50.0, 51.0, np.nan])
+    df["Prices"] = [60.0, 61.0, 62.0]
+    s = summary_table(df).set_index("Sub-Index")
+    assert (s.loc["PMI", "As of"], s.loc["PMI", "Current"]) == ("2024-02-01", 51.0)
+    assert s.loc["Prices", "As of"] == "2024-03-01"
+    assert s.loc["New Orders", "Status"] == "N/A"
+
+
+def test_sector_rankings_break_ties_by_industry_regardless_of_input_order():
+    rows = [
+        ("PMI", "2026-06-01", name, "Growth", score)
+        for name, score in [("Wood", 3), ("Apparel", 3), ("Paper", 5), ("Chemicals", 3)]
+    ]
+    df = pd.DataFrame(
+        rows, columns=["Category", "Date", "Industry", "Direction", "Score"]
+    )
+    df["Date"] = pd.to_datetime(df["Date"])
+    expected = ["Paper", "Apparel", "Chemicals", "Wood"]
+    for seed in range(5):
+        shuffled = df.sample(frac=1, random_state=seed)
+        assert sector_rankings(shuffled, "2026-06-01")["Industry"].tolist() == expected
+
+
+def test_zscore_needs_ten_years(sample):
+    assert cfg.ZSCORE_MIN_PERIODS == 120
+    assert get_signal(sample)["zscore"] is None  # 36 months only
+    long = _pmi_frame(list(np.linspace(45, 55, 120)))
+    assert get_signal(long)["zscore"] is not None

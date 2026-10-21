@@ -6,24 +6,47 @@ Implied Inflation.
 import streamlit as st
 
 from src.core import charts
+from src.core.signals import format_zscore
+from src.core.transforms import last_complete_row
 from src.modules.treasury_yields.calculations import (
     curve_on_date,
+    get_signal,
     implied_inflation,
     load_history,
+    snapshot_dates,
     spread_series,
     summary_table,
 )
-from src.modules.treasury_yields.config import TENOR_COLS
+from src.modules.treasury_yields.config import (
+    CURVE_SNAPSHOT_LOOKBACK_DAYS,
+    NOMINAL_TENORS,
+    SOURCE,
+    TENOR_COLS,
+)
 
 st.set_page_config(page_title="Treasury Yields — US", layout="wide")
 st.title("US Treasury Benchmark Yields")
 
 df = load_history()
-latest_date = df["Date"].max()
+curve_i = last_complete_row(df, NOMINAL_TENORS)
+curve_date = df["Date"].iloc[curve_i if curve_i is not None else -1]
 st.caption(
-    f"Data through {latest_date.strftime('%Y-%m-%d')} · weekly snapshots · "
-    f"{len(df):,} observations since {df['Date'].min().strftime('%Y')}"
+    f"As of {curve_date:%Y-%m-%d} (latest full nominal curve) · weekly snapshots to 2025, "
+    f"daily from 2026 · {len(df):,} observations since {df['Date'].min().strftime('%Y')} · "
+    "changes are measured over calendar windows (WoW 7, MoM 28, QoQ 91, YoY 364 days)"
 )
+st.caption(f"Source: {SOURCE}")
+
+sig = get_signal(df)
+k1, k2, k3, k4 = st.columns(4)
+k1.metric("2s10s spread", f"{sig['level']:+.2f} pp")
+k2.metric(
+    "Change over 4 weeks",
+    "n/a" if sig["change"] is None else f"{sig['change'] * 100:+.0f} bp",
+)
+k3.metric("Z-score vs 10y", format_zscore(sig["zscore"]))
+k4.metric("Curve regime", sig["regime"], sig["direction"], delta_color="off")
+st.caption(f"As of {sig['as_of']}. {sig['market_read']}")
 
 tab_summary, tab_curve, tab_spread, tab_inflation = st.tabs(
     ["Summary", "Curve Analysis", "Spread Analysis", "Implied Inflation"]
@@ -32,6 +55,7 @@ tab_summary, tab_curve, tab_spread, tab_inflation = st.tabs(
 # ---------- Summary tab ----------
 with tab_summary:
     st.subheader("Current yields and changes")
+    st.caption("Each tenor shows its own latest published value; see the As of column.")
     s = summary_table(df)
     st.dataframe(
         s.style.format(
@@ -61,11 +85,7 @@ with tab_summary:
 with tab_curve:
     st.subheader("Yield curve comparison")
     available_dates = df["Date"].sort_values(ascending=False)
-    default_dates = [
-        available_dates.iloc[0],
-        available_dates.iloc[13],
-        available_dates.iloc[52],
-    ]
+    default_dates = snapshot_dates(df, CURVE_SNAPSHOT_LOOKBACK_DAYS)
     picked = st.multiselect(
         "Compare snapshot dates",
         options=list(available_dates.dt.strftime("%Y-%m-%d")),
@@ -112,6 +132,7 @@ with tab_spread:
     st.metric(
         f"Current {tenor_a} - {tenor_b} spread", f"{sp['Spread'].iloc[-1]:+.2f} pp"
     )
+    st.caption(f"As of {sp['Date'].iloc[-1]:%Y-%m-%d}")
 
 # ---------- Implied Inflation tab ----------
 with tab_inflation:
@@ -123,6 +144,7 @@ with tab_inflation:
             "No dates in the current history have both nominal and TIPS yields available yet."
         )
     else:
+        st.caption(f"As of {infl['As of'].iloc[0]}")
         st.dataframe(
             infl.style.format(
                 {"Nominal": "{:.2f}", "TIPS": "{:.2f}", "Implied Inflation": "{:.2f}"}

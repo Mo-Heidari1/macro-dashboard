@@ -8,9 +8,9 @@ Replicates the logic from Benchmark_Yields_US-updated.xlsm:
 - Implied inflation (breakeven): nominal yield minus matching TIPS yield
 and adds get_signal(): the 2s10s curve reading in the shared scorecard schema.
 
-Data cadence: WEEKLY snapshots (one row per week) in the source workbook,
-so WoW/MoM/QoQ/YoY are offsets of 1/4/13/52 rows, not calendar days.
-get_signal() uses calendar-day lookbacks instead, so it is cadence-agnostic.
+Data cadence: WEEKLY (Sunday-dated) snapshots from the source workbook to
+2025, then DAILY from 2026-01-01. Every change is therefore measured over a
+calendar window (e.g. WoW = 7 days), never a row count.
 """
 
 import pandas as pd
@@ -18,8 +18,9 @@ import pandas as pd
 from src.core import paths
 from src.core.signals import direction_label
 from src.core.transforms import (
-    change_at_offset,
+    change_over,
     last_complete_row,
+    last_valid,
     row_on_or_before,
     zscore_last,
 )
@@ -37,19 +38,23 @@ def load_history(path: str | None = None) -> pd.DataFrame:
 def summary_table(df: pd.DataFrame) -> pd.DataFrame:
     """
     Replicates the 'Summary' sheet: current yield and WoW/MoM/QoQ/YoY
-    change (in percentage points) for every tenor.
+    change (in percentage points) for every tenor, each change measured
+    over SUMMARY_LOOKBACK_DAYS calendar days. Each tenor uses its own last
+    published value, dated in the "As of" column (series post on different
+    days, e.g. Fed Funds lags the Treasury curve).
     """
-    latest = df.iloc[-1]
     out = []
     for tenor in cfg.TENOR_COLS:
+        last = last_valid(df, tenor)
         out.append(
             {
                 "Tenor": tenor,
-                "Current Yield %": latest[tenor],
-                "WoW": change_at_offset(df, tenor, cfg.OFFSET_WOW),
-                "MoM": change_at_offset(df, tenor, cfg.OFFSET_MOM),
-                "QoQ": change_at_offset(df, tenor, cfg.OFFSET_QOQ),
-                "YoY": change_at_offset(df, tenor, cfg.OFFSET_YOY),
+                "As of": last[0].strftime("%Y-%m-%d") if last else None,
+                "Current Yield %": last[1] if last else None,
+                **{
+                    label: change_over(df, tenor, pd.Timedelta(days=days))
+                    for label, days in cfg.SUMMARY_LOOKBACK_DAYS.items()
+                },
             }
         )
     return pd.DataFrame(out)
@@ -64,7 +69,7 @@ def implied_inflation(df: pd.DataFrame) -> pd.DataFrame:
     yields, so the very latest row may have nominal but not-yet-published
     TIPS values. To avoid returning an empty table, this walks backward
     from the latest row until it finds one with at least one complete
-    nominal/TIPS pair.
+    nominal/TIPS pair. The row's date is returned in the "As of" column.
     """
     for i in range(len(df) - 1, -1, -1):
         row = df.iloc[i]
@@ -73,6 +78,7 @@ def implied_inflation(df: pd.DataFrame) -> pd.DataFrame:
             if pd.notna(row[nom]) and pd.notna(row[tips]):
                 out.append(
                     {
+                        "As of": row["Date"].strftime("%Y-%m-%d"),
                         "Maturity": nom,
                         "Nominal": row[nom],
                         "TIPS": row[tips],
@@ -83,7 +89,9 @@ def implied_inflation(df: pd.DataFrame) -> pd.DataFrame:
             return pd.DataFrame(out)
 
     # No row anywhere has a complete nominal/TIPS pair
-    return pd.DataFrame(columns=["Maturity", "Nominal", "TIPS", "Implied Inflation"])
+    return pd.DataFrame(
+        columns=["As of", "Maturity", "Nominal", "TIPS", "Implied Inflation"]
+    )
 
 
 def curve_on_date(
@@ -91,14 +99,15 @@ def curve_on_date(
 ) -> pd.DataFrame:
     """
     Yield curve snapshot: yield vs. maturity (years) for a given date
-    (defaults to latest). Used to feed the Curve Analysis chart.
+    (defaults to the last row with every requested tenor populated). Used
+    to feed the Curve Analysis chart.
     """
     tenors = tenors or cfg.NOMINAL_TENORS
-    row = (
-        df.iloc[-1]
-        if date is None
-        else df.loc[df["Date"] == pd.Timestamp(date)].iloc[0]
-    )
+    if date is None:
+        i = last_complete_row(df, tenors)
+        row = df.iloc[-1 if i is None else i]
+    else:
+        row = df.loc[df["Date"] == pd.Timestamp(date)].iloc[0]
     out = pd.DataFrame(
         {
             "Tenor": tenors,
@@ -180,3 +189,72 @@ def get_signal(df: pd.DataFrame) -> dict:
         "regime": regime,
         "market_read": cfg.MARKET_READ[regime],
     }
+
+
+def align_to_history(dates: pd.Series, live: pd.DataFrame) -> pd.DataFrame:
+    """
+    Treasury.gov observations aligned to history dates, one row per date.
+
+    Weekday dates take the observation for that exact day (a market holiday
+    stays empty). Weekend-dated rows (the source workbook's Sunday weekly
+    snapshots) take the last observation on or before that date, within
+    WEEKEND_MAX_LAG_DAYS, i.e. the prior Friday's close.
+    """
+    left = pd.DataFrame({"Date": pd.to_datetime(dates)}).sort_values("Date")
+    live = live.sort_values("Date")
+    exact = left.merge(live, on="Date", how="left")
+    carried = pd.merge_asof(
+        left,
+        live,
+        on="Date",
+        direction="backward",
+        tolerance=pd.Timedelta(days=cfg.WEEKEND_MAX_LAG_DAYS),
+    )
+    weekend = (left["Date"].dt.dayofweek >= 5).to_numpy()
+    out = exact.copy()
+    for col in live.columns.drop("Date"):
+        out.loc[weekend, col] = carried.loc[weekend, col].to_numpy()
+    return out
+
+
+def backfill_columns(
+    history: pd.DataFrame, aligned: pd.DataFrame, columns: list[str], mode: str
+) -> tuple[pd.DataFrame, dict]:
+    """
+    Write `aligned` source values into `history` for the aligned dates.
+    mode "fill" only fills empty cells; "overwrite" replaces values that
+    differ at 2 dp. Returns (updated copy of history, {column: cells changed}).
+    """
+    out = history.copy()
+    pos = out.reset_index().set_index("Date")["index"].loc[aligned["Date"]].to_numpy()
+    changes = {}
+    for col in columns:
+        new = pd.Series(aligned[col].to_numpy(), index=pos)
+        old = out.loc[pos, col]
+        if mode == "fill":
+            mask = old.isna() & new.notna()
+        else:
+            mask = new.notna() & (old.isna() | (old.round(2) != new.round(2)))
+        out.loc[mask[mask].index, col] = new[mask]
+        changes[col] = int(mask.sum())
+    return out, changes
+
+
+def snapshot_dates(
+    df: pd.DataFrame, lookback_days: list[int], cols: list[str] | None = None
+) -> list[pd.Timestamp]:
+    """
+    For each lookback, the last date on or before (as-of date - lookback
+    days) among rows with every column in `cols` populated (default: the
+    nominal curve). Used for the default curve comparisons.
+    """
+    df = df.dropna(subset=cols or cfg.NOMINAL_TENORS)
+    if df.empty:
+        return []
+    latest = df["Date"].max()
+    out = []
+    for days in lookback_days:
+        row = row_on_or_before(df, latest - pd.Timedelta(days=days))
+        if row is not None:
+            out.append(row["Date"])
+    return out

@@ -8,12 +8,18 @@ import pandas as pd
 import pytest
 
 from src.core import charts, paths
-from src.core.signals import DEFAULT_DIRECTION_LABELS, direction_label, validate_signal
+from src.core.loaders import parse_treasury_curve
+from src.core.signals import (
+    DEFAULT_DIRECTION_LABELS,
+    direction_label,
+    format_zscore,
+    validate_signal,
+)
 from src.core.transforms import (
-    change_at_offset,
+    change_over,
     last_complete_row,
+    rolling_mean_change,
     row_on_or_before,
-    window_mean_change,
     zscore_last,
 )
 
@@ -52,11 +58,51 @@ def test_resolve_missing_raises(tmp_path):
 # ---------- transforms ----------
 
 
-def test_change_at_offset():
-    df = pd.DataFrame({"x": [1.0, 2.0, 4.5, np.nan, 7.123456]})
-    assert change_at_offset(df, "x", 2) == round(7.123456 - 4.5, 4)
-    assert change_at_offset(df, "x", 1) is None  # prior value missing
-    assert change_at_offset(df, "x", 5) is None  # not enough rows
+def test_change_over_calendar_window():
+    weekly = pd.DataFrame(
+        {
+            "Date": pd.date_range("2026-01-04", periods=5, freq="W-SUN"),
+            "x": [1.0, 2.0, 4.5, np.nan, 7.123456],
+        }
+    )
+    assert change_over(weekly, "x", pd.Timedelta(days=14)) == round(7.123456 - 4.5, 4)
+    # prior week missing: nothing within one further window, so no change
+    assert change_over(weekly, "x", pd.Timedelta(days=7)) is None
+    assert change_over(weekly, "x", pd.Timedelta(days=60)) is None  # nothing old enough
+
+
+def test_change_over_mixed_cadence():
+    # weekly rows, then daily rows: a 7-day window is still one week
+    dates = pd.to_datetime(
+        [
+            "2025-12-21",
+            "2025-12-28",
+            "2026-01-02",
+            "2026-01-05",
+            "2026-01-06",
+            "2026-01-07",
+            "2026-01-08",
+            "2026-01-09",
+        ]
+    )
+    df = pd.DataFrame({"Date": dates, "x": [1, 2, 3, 4, 5, 6, 7, 8.0]})
+    assert change_over(df, "x", pd.Timedelta(days=7)) == 8.0 - 3.0  # vs 2026-01-02
+    df.loc[7, "x"] = np.nan
+    # latest row missing: walk back to 2026-01-08 (7) and compare with 2025-12-28 (2)
+    assert change_over(df, "x", pd.Timedelta(days=7)) == 5.0
+
+
+def test_change_over_months():
+    df = pd.DataFrame(
+        {
+            "Date": pd.to_datetime(["2025-06-01", "2025-08-01", "2026-06-01"]),
+            "x": [50.0, 51.0, 53.3],
+        }
+    )  # July 2025 missing
+    assert change_over(df, "x", pd.DateOffset(months=12)) == pytest.approx(3.3)
+    assert change_over(df, "x", pd.DateOffset(months=1)) is None  # May 2026 missing
+    # stale comparison: the only older value is beyond one extra window
+    assert change_over(df.iloc[[0, 2]], "x", pd.DateOffset(months=6)) is None
 
 
 def test_last_complete_row_walks_back():
@@ -85,10 +131,12 @@ def test_zscore_last_known_value():
     assert zscore_last(pd.Series([2.0, 2.0, 2.0])) is None  # zero variance
 
 
-def test_window_mean_change():
-    s = pd.Series([50, 51, 52, 54, 55, 56])  # (55) - (51) = 4
-    assert window_mean_change(s, 3) == pytest.approx(4.0)
-    assert window_mean_change(s.iloc[:5], 3) is None
+def test_rolling_mean_change():
+    s = pd.Series([50, 51, 52, 54, 55, 56, 57.0])
+    out = rolling_mean_change(s, 3)
+    assert out.iloc[:5].isna().all()
+    assert out.iloc[5] == pytest.approx(55 - 51)  # (54,55,56) vs (50,51,52)
+    assert out.iloc[6] == pytest.approx(56 - 52.333333)
 
 
 # ---------- signals ----------
@@ -189,3 +237,23 @@ def test_multi_line_chart_dash_and_mode():
     )
     assert [t.mode for t in fig.data] == ["lines+markers", "lines"]
     assert fig.data[1].line.dash == "dot" and fig.layout.xaxis.type == "log"
+
+
+# ---------- loaders ----------
+
+
+def test_parse_treasury_curve_ignores_header_case():
+    # Treasury's real-yield CSV uses "10 YR"; the nominal CSV uses "10 Yr".
+    raw = pd.DataFrame(
+        {"Date": ["10/20/2026"], "5 YR": [2.55], "10 YR": [2.77], "1.5 Month": [3.9]}
+    )
+    out = parse_treasury_curve(raw, {"5 Yr": "5yr TIPS", "10 Yr": "10yr TIPS"})
+    assert list(out.columns) == ["Date", "5yr TIPS", "10yr TIPS"]
+    assert out["Date"].iloc[0] == pd.Timestamp("2026-10-20")
+    assert out["10yr TIPS"].iloc[0] == 2.77
+
+
+def test_format_zscore():
+    assert format_zscore(None) == "n/a: needs 10y history"
+    assert format_zscore(0.04) == "+0.04"
+    assert format_zscore(-1.234) == "-1.23"

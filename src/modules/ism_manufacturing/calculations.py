@@ -23,9 +23,10 @@ import pandas as pd
 from src.core import paths
 from src.core.signals import direction_label
 from src.core.transforms import (
-    change_at_offset,
+    change_over,
     last_complete_row,
-    window_mean_change,
+    last_valid,
+    rolling_mean_change,
     zscore_last,
 )
 from src.modules.ism_manufacturing import config as cfg
@@ -58,18 +59,24 @@ def classify(value) -> str:
 
 
 def summary_table(df: pd.DataFrame) -> pd.DataFrame:
-    """Current value, classification, and MoM/YoY change for every sub-index."""
-    latest = df.iloc[-1]
+    """
+    Current value, classification, and MoM/YoY change for every sub-index,
+    each from its own last published month (dated in "As of").
+    """
     out = []
     for col in cfg.SUBINDEX_COLS:
-        cur = latest[col]
+        last = last_valid(df, col)
+        cur = last[1] if last else None
         out.append(
             {
                 "Sub-Index": col,
+                "As of": last[0].strftime("%Y-%m-%d") if last else None,
                 "Current": cur,
                 "Status": classify(cur),
-                "MoM": change_at_offset(df, col, cfg.OFFSET_MOM),
-                "YoY": change_at_offset(df, col, cfg.OFFSET_YOY),
+                **{
+                    label: change_over(df, col, pd.DateOffset(months=months))
+                    for label, months in cfg.SUMMARY_LOOKBACK_MONTHS.items()
+                },
             }
         )
     return pd.DataFrame(out)
@@ -95,7 +102,8 @@ def sector_rankings(
     Growth/contraction/score per industry for a given month and category
     (headline 'PMI' or one of the sub-indices ISM publishes a breakdown
     for: New Orders, Production, Employment, Deliveries, Inventories,
-    Customer Inventories). Sorted by Score descending (strongest growth first).
+    Customer Inventories). Sorted by Score descending (strongest growth first),
+    ties broken alphabetically by Industry so the order is deterministic.
     """
     date = pd.Timestamp(date)
     out = sectors_df[
@@ -103,7 +111,7 @@ def sector_rankings(
     ]
     return (
         out[["Industry", "Direction", "Score"]]
-        .sort_values("Score", ascending=False)
+        .sort_values(["Score", "Industry"], ascending=[False, True], kind="stable")
         .reset_index(drop=True)
     )
 
@@ -125,19 +133,48 @@ def recompute_pmi_from_subindices(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def pmi_regime(level: float, momentum: float | None) -> str:
-    """Quadrant regime from the PMI level vs 50 and the sign of its momentum."""
+def pmi_regime(level: float, trend: str) -> str:
+    """Quadrant regime from the PMI level vs 50 and the momentum trend."""
     side = "above" if level >= cfg.REGIME_LEVEL else "below"
-    trend = "rising" if momentum is None or momentum >= 0 else "falling"
     return cfg.REGIMES[(side, trend)]
+
+
+def regime_history(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Month-by-month PMI regime with hysteresis: Date, level, momentum (3m
+    average vs prior 3m average), stable (momentum inside ±DIRECTION_BAND),
+    trend and regime. A stable month keeps the prior month's trend.
+    """
+    col = cfg.SIGNAL_COL
+    out = df[["Date", col]].dropna().reset_index(drop=True)
+    out = out.rename(columns={col: "level"})
+    out["momentum"] = rolling_mean_change(out["level"], cfg.DIRECTION_WINDOW).round(4)
+    stables, trends, prior = [], [], None
+    for m in out["momentum"]:
+        stable = bool(pd.isna(m) or abs(m) <= cfg.DIRECTION_BAND)
+        if not stable:
+            trend = "rising" if m > 0 else "falling"
+        elif prior is not None:
+            trend = prior
+        else:
+            trend = "rising" if pd.isna(m) or m >= 0 else "falling"
+        stables.append(stable)
+        trends.append(trend)
+        if not pd.isna(m):  # months before momentum exists don't set a trend
+            prior = trend
+    out["stable"] = stables
+    out["trend"] = trends
+    out["regime"] = [pmi_regime(lv, t) for lv, t in zip(out["level"], out["trend"])]
+    return out
 
 
 def get_signal(df: pd.DataFrame) -> dict:
     """
     Headline PMI reading in the shared signal schema, as of the last month
     with PMI populated. Change is MoM; direction and regime use the 3-month
-    average vs the prior 3-month average; z-score is vs the trailing
-    ZSCORE_WINDOW_MONTHS.
+    average vs the prior 3-month average, and inside the ±1.0 band the
+    regime keeps the prior month's trend (see regime_history); z-score is
+    vs the trailing ZSCORE_WINDOW_MONTHS.
     """
     col = cfg.SIGNAL_COL
     i = last_complete_row(df, [col])
@@ -148,11 +185,12 @@ def get_signal(df: pd.DataFrame) -> dict:
     level = float(series.iloc[-1])
 
     change = round(level - float(series.iloc[-2]), 4) if len(series) > 1 else None
-    momentum = window_mean_change(series, cfg.DIRECTION_WINDOW)
-    momentum = None if momentum is None else round(momentum, 4)
+    latest = regime_history(history).iloc[-1]
+    momentum = None if pd.isna(latest["momentum"]) else float(latest["momentum"])
     z = zscore_last(series.tail(cfg.ZSCORE_WINDOW_MONTHS), cfg.ZSCORE_MIN_PERIODS)
 
-    regime = pmi_regime(level, momentum)
+    regime = latest["regime"]
+    reads = cfg.MARKET_READ_STABLE if latest["stable"] else cfg.MARKET_READ
     return {
         "indicator": cfg.INDICATOR,
         "region": cfg.REGION,
@@ -165,6 +203,6 @@ def get_signal(df: pd.DataFrame) -> dict:
             momentum, cfg.DIRECTION_BAND, cfg.DIRECTION_LABELS
         ),
         "regime": regime,
-        "market_read": cfg.MARKET_READ[regime],
+        "market_read": reads[regime],
         "extreme": level > cfg.EXTREME_HIGH or level < cfg.EXTREME_LOW,
     }
