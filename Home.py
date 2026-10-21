@@ -13,6 +13,7 @@ import pandas as pd
 import streamlit as st
 
 from src.core import charts, paths
+from src.core.transforms import change_over
 from src.modules.ism_manufacturing import config as ism_cfg
 from src.modules.ism_manufacturing.calculations import classify, load_ism_history
 from src.modules.treasury_yields.calculations import load_history
@@ -29,7 +30,7 @@ col1, col2, col3 = st.columns(3)
 col1.metric(
     "10yr Treasury Yield",
     f"{yields_df.iloc[-1]['10yr']:.2f}%",
-    f"{yields_df.iloc[-1]['10yr'] - yields_df.iloc[-2]['10yr']:+.2f} pp WoW",
+    f"{change_over(yields_df, '10yr', pd.Timedelta(days=7)):+.2f} pp WoW",
 )
 spread_2s10s = yields_df.iloc[-1]["10yr"] - yields_df.iloc[-1]["2yr"]
 col2.metric("2s10s Spread", f"{spread_2s10s:+.2f} pp")

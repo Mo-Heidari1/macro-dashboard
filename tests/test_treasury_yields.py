@@ -14,6 +14,7 @@ from src.modules.treasury_yields.calculations import (
     get_signal,
     implied_inflation,
     load_history,
+    snapshot_dates,
     spread_series,
     summary_table,
 )
@@ -66,7 +67,7 @@ def test_known_spread_and_curve(history):
 # ---------- calculations ----------
 
 
-def test_summary_table_row_offsets():
+def test_summary_table_weekly_windows_match_workbook_offsets():
     tenyr = np.arange(60, dtype=float) / 10
     df = _frame(
         pd.date_range("2020-01-05", periods=60, freq="W-SUN"), **{"10yr": tenyr}
@@ -206,3 +207,23 @@ def test_daily_rows_have_tips_where_treasury_published():
     h = load_history()
     daily_2026 = h[(h["Date"].dt.year == 2026) & h["10yr"].notna()]
     assert daily_2026["10yr TIPS"].notna().all()
+
+
+def test_summary_changes_on_daily_rows_use_calendar_days():
+    dates = pd.bdate_range("2025-01-01", "2026-03-31")
+    tenyr = np.arange(len(dates), dtype=float) / 100
+    df = _frame(dates, **{"10yr": tenyr})
+    row = summary_table(df).set_index("Tenor").loc["10yr"]
+    s = pd.Series(tenyr, index=dates)
+    for label, days in cfg.SUMMARY_LOOKBACK_DAYS.items():
+        prior = s.loc[: dates[-1] - pd.Timedelta(days=days)].iloc[-1]
+        assert row[label] == pytest.approx(round(tenyr[-1] - prior, 4))
+
+
+def test_snapshot_dates_by_calendar():
+    dates = pd.bdate_range("2025-01-01", "2026-03-31")
+    df = _frame(dates, **{"10yr": np.ones(len(dates))})
+    got = snapshot_dates(df, [0, 91, 364])
+    assert got[0] == dates[-1]
+    assert got[1] == dates[dates <= dates[-1] - pd.Timedelta(days=91)][-1]
+    assert got[2] == dates[dates <= dates[-1] - pd.Timedelta(days=364)][-1]

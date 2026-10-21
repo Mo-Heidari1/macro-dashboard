@@ -23,7 +23,7 @@ import pandas as pd
 from src.core import paths
 from src.core.signals import direction_label
 from src.core.transforms import (
-    change_at_offset,
+    change_over,
     last_complete_row,
     window_mean_change,
     zscore_last,
@@ -68,8 +68,10 @@ def summary_table(df: pd.DataFrame) -> pd.DataFrame:
                 "Sub-Index": col,
                 "Current": cur,
                 "Status": classify(cur),
-                "MoM": change_at_offset(df, col, cfg.OFFSET_MOM),
-                "YoY": change_at_offset(df, col, cfg.OFFSET_YOY),
+                **{
+                    label: change_over(df, col, pd.DateOffset(months=months))
+                    for label, months in cfg.SUMMARY_LOOKBACK_MONTHS.items()
+                },
             }
         )
     return pd.DataFrame(out)

@@ -74,12 +74,13 @@ BREAKEVEN_PAIRS = [
     ("20yr", "20yr TIPS"),
 ]
 
-# Row offsets matching the source workbook's HLOOKUP column indices.
-# Calibrated for WEEKLY rows (1/4/13/52 weeks).
-OFFSET_WOW = 1
-OFFSET_MOM = 4
-OFFSET_QOQ = 13
-OFFSET_YOY = 52
+# Summary-table change windows in calendar days. 7/28/91/364 equal the
+# source workbook's 1/4/13/52-week offsets on weekly rows, and stay correct
+# on the daily rows appended since 2026-01-01.
+SUMMARY_LOOKBACK_DAYS = {"WoW": 7, "MoM": 28, "QoQ": 91, "YoY": 364}
+
+# Default curve snapshots on the Curve Analysis tab: latest, ~3m and ~1y ago.
+CURVE_SNAPSHOT_LOOKBACK_DAYS = [0, 91, 364]
 
 # ---------- live sources ----------
 # Treasury.gov CSV headers -> tenor names. Verified against a live pull on

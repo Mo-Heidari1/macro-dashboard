@@ -165,3 +165,11 @@ def test_signal_schema_on_sample(sample):
     sig = get_signal(sample)
     assert validate_signal(sig, cfg.DIRECTION_LABELS, cfg.REGIME_LABELS) == []
     assert sig["as_of"] == "2026-06-01" and sig["level"] == 53.3
+
+
+def test_summary_yoy_uses_calendar_months_across_a_gap():
+    df = _pmi_frame([50.0, 51.0, 52.0], start="2025-05-01")
+    df.loc[2, "Date"] = pd.Timestamp("2026-06-01")  # 12 months after 2025-06-01
+    row = summary_table(df).set_index("Sub-Index").loc["PMI"]
+    assert row["YoY"] == pytest.approx(1.0)  # vs June 2025, not the row before
+    assert pd.isna(row["MoM"])  # May 2026 missing: no value within the window

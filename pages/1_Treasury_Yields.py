@@ -10,10 +10,11 @@ from src.modules.treasury_yields.calculations import (
     curve_on_date,
     implied_inflation,
     load_history,
+    snapshot_dates,
     spread_series,
     summary_table,
 )
-from src.modules.treasury_yields.config import TENOR_COLS
+from src.modules.treasury_yields.config import CURVE_SNAPSHOT_LOOKBACK_DAYS, TENOR_COLS
 
 st.set_page_config(page_title="Treasury Yields — US", layout="wide")
 st.title("US Treasury Benchmark Yields")
@@ -21,8 +22,9 @@ st.title("US Treasury Benchmark Yields")
 df = load_history()
 latest_date = df["Date"].max()
 st.caption(
-    f"Data through {latest_date.strftime('%Y-%m-%d')} · weekly snapshots · "
-    f"{len(df):,} observations since {df['Date'].min().strftime('%Y')}"
+    f"Data through {latest_date.strftime('%Y-%m-%d')} · weekly snapshots to 2025, "
+    f"daily from 2026 · {len(df):,} observations since {df['Date'].min().strftime('%Y')} · "
+    "changes are measured over calendar windows (WoW 7, MoM 28, QoQ 91, YoY 364 days)"
 )
 
 tab_summary, tab_curve, tab_spread, tab_inflation = st.tabs(
@@ -61,11 +63,7 @@ with tab_summary:
 with tab_curve:
     st.subheader("Yield curve comparison")
     available_dates = df["Date"].sort_values(ascending=False)
-    default_dates = [
-        available_dates.iloc[0],
-        available_dates.iloc[13],
-        available_dates.iloc[52],
-    ]
+    default_dates = snapshot_dates(df, CURVE_SNAPSHOT_LOOKBACK_DAYS)
     picked = st.multiselect(
         "Compare snapshot dates",
         options=list(available_dates.dt.strftime("%Y-%m-%d")),

@@ -6,19 +6,32 @@ I/O, no global state, no Streamlit.
 import pandas as pd
 
 
-def change_at_offset(df: pd.DataFrame, col: str, offset: int) -> float | None:
+def change_over(
+    df: pd.DataFrame,
+    col: str,
+    lookback: pd.Timedelta | pd.DateOffset,
+    date_col: str = "Date",
+) -> float | None:
     """
-    Latest value of `col` minus its value `offset` rows earlier, rounded to
-    4 dp. None if there aren't enough rows or either value is missing.
-    Offsets are in rows, so their meaning depends on the data's cadence.
+    Latest value of `col` minus the last value dated on or before
+    (latest date - lookback), rounded to 4 dp. Calendar-based, so it means
+    the same thing on weekly, daily or mixed-cadence data. The comparison
+    value must be less than one further lookback older than that (so a
+    missing month can't turn MoM into a 12-month change). None if the
+    latest value is missing or no comparison value qualifies.
     """
-    if len(df) <= offset:
+    if df.empty:
         return None
-    cur = df.iloc[-1][col]
-    prior = df.iloc[-1 - offset][col]
-    if pd.isna(cur) or pd.isna(prior):
+    latest = df.iloc[-1]
+    cur = latest[col]
+    if pd.isna(cur):
         return None
-    return round(cur - prior, 4)
+    target = latest[date_col] - lookback
+    window = (df[date_col] <= target) & (df[date_col] > target - lookback)
+    earlier = df.loc[window, col].dropna()
+    if earlier.empty:
+        return None
+    return round(cur - earlier.iloc[-1], 4)
 
 
 def last_complete_row(df: pd.DataFrame, cols: list[str]) -> int | None:

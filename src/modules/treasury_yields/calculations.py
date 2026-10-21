@@ -8,9 +8,9 @@ Replicates the logic from Benchmark_Yields_US-updated.xlsm:
 - Implied inflation (breakeven): nominal yield minus matching TIPS yield
 and adds get_signal(): the 2s10s curve reading in the shared scorecard schema.
 
-Data cadence: WEEKLY snapshots (one row per week) in the source workbook,
-so WoW/MoM/QoQ/YoY are offsets of 1/4/13/52 rows, not calendar days.
-get_signal() uses calendar-day lookbacks instead, so it is cadence-agnostic.
+Data cadence: WEEKLY (Sunday-dated) snapshots from the source workbook to
+2025, then DAILY from 2026-01-01. Every change is therefore measured over a
+calendar window (e.g. WoW = 7 days), never a row count.
 """
 
 import pandas as pd
@@ -18,7 +18,7 @@ import pandas as pd
 from src.core import paths
 from src.core.signals import direction_label
 from src.core.transforms import (
-    change_at_offset,
+    change_over,
     last_complete_row,
     row_on_or_before,
     zscore_last,
@@ -37,7 +37,8 @@ def load_history(path: str | None = None) -> pd.DataFrame:
 def summary_table(df: pd.DataFrame) -> pd.DataFrame:
     """
     Replicates the 'Summary' sheet: current yield and WoW/MoM/QoQ/YoY
-    change (in percentage points) for every tenor.
+    change (in percentage points) for every tenor, each change measured
+    over SUMMARY_LOOKBACK_DAYS calendar days.
     """
     latest = df.iloc[-1]
     out = []
@@ -46,10 +47,10 @@ def summary_table(df: pd.DataFrame) -> pd.DataFrame:
             {
                 "Tenor": tenor,
                 "Current Yield %": latest[tenor],
-                "WoW": change_at_offset(df, tenor, cfg.OFFSET_WOW),
-                "MoM": change_at_offset(df, tenor, cfg.OFFSET_MOM),
-                "QoQ": change_at_offset(df, tenor, cfg.OFFSET_QOQ),
-                "YoY": change_at_offset(df, tenor, cfg.OFFSET_YOY),
+                **{
+                    label: change_over(df, tenor, pd.Timedelta(days=days))
+                    for label, days in cfg.SUMMARY_LOOKBACK_DAYS.items()
+                },
             }
         )
     return pd.DataFrame(out)
@@ -229,3 +230,17 @@ def backfill_columns(
         out.loc[mask[mask].index, col] = new[mask]
         changes[col] = int(mask.sum())
     return out, changes
+
+
+def snapshot_dates(df: pd.DataFrame, lookback_days: list[int]) -> list[pd.Timestamp]:
+    """
+    For each lookback, the last history date on or before (latest date -
+    lookback days). Used for the default curve comparisons.
+    """
+    latest = df["Date"].max()
+    out = []
+    for days in lookback_days:
+        row = row_on_or_before(df, latest - pd.Timedelta(days=days))
+        if row is not None:
+            out.append(row["Date"])
+    return out

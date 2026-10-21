@@ -11,7 +11,7 @@ from src.core import charts, paths
 from src.core.loaders import parse_treasury_curve
 from src.core.signals import DEFAULT_DIRECTION_LABELS, direction_label, validate_signal
 from src.core.transforms import (
-    change_at_offset,
+    change_over,
     last_complete_row,
     row_on_or_before,
     window_mean_change,
@@ -53,11 +53,50 @@ def test_resolve_missing_raises(tmp_path):
 # ---------- transforms ----------
 
 
-def test_change_at_offset():
-    df = pd.DataFrame({"x": [1.0, 2.0, 4.5, np.nan, 7.123456]})
-    assert change_at_offset(df, "x", 2) == round(7.123456 - 4.5, 4)
-    assert change_at_offset(df, "x", 1) is None  # prior value missing
-    assert change_at_offset(df, "x", 5) is None  # not enough rows
+def test_change_over_calendar_window():
+    weekly = pd.DataFrame(
+        {
+            "Date": pd.date_range("2026-01-04", periods=5, freq="W-SUN"),
+            "x": [1.0, 2.0, 4.5, np.nan, 7.123456],
+        }
+    )
+    assert change_over(weekly, "x", pd.Timedelta(days=14)) == round(7.123456 - 4.5, 4)
+    # prior week missing: nothing within one further window, so no change
+    assert change_over(weekly, "x", pd.Timedelta(days=7)) is None
+    assert change_over(weekly, "x", pd.Timedelta(days=60)) is None  # nothing old enough
+
+
+def test_change_over_mixed_cadence():
+    # weekly rows, then daily rows: a 7-day window is still one week
+    dates = pd.to_datetime(
+        [
+            "2025-12-21",
+            "2025-12-28",
+            "2026-01-02",
+            "2026-01-05",
+            "2026-01-06",
+            "2026-01-07",
+            "2026-01-08",
+            "2026-01-09",
+        ]
+    )
+    df = pd.DataFrame({"Date": dates, "x": [1, 2, 3, 4, 5, 6, 7, 8.0]})
+    assert change_over(df, "x", pd.Timedelta(days=7)) == 8.0 - 3.0  # vs 2026-01-02
+    df.loc[7, "x"] = np.nan
+    assert change_over(df, "x", pd.Timedelta(days=7)) is None  # latest missing
+
+
+def test_change_over_months():
+    df = pd.DataFrame(
+        {
+            "Date": pd.to_datetime(["2025-06-01", "2025-08-01", "2026-06-01"]),
+            "x": [50.0, 51.0, 53.3],
+        }
+    )  # July 2025 missing
+    assert change_over(df, "x", pd.DateOffset(months=12)) == pytest.approx(3.3)
+    assert change_over(df, "x", pd.DateOffset(months=1)) is None  # May 2026 missing
+    # stale comparison: the only older value is beyond one extra window
+    assert change_over(df.iloc[[0, 2]], "x", pd.DateOffset(months=6)) is None
 
 
 def test_last_complete_row_walks_back():

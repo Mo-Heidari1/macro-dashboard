@@ -51,8 +51,8 @@ STATUS_LABELS = {
     "missing": "N/A",
 }
 
-OFFSET_MOM = 1
-OFFSET_YOY = 12
+# Summary-table change windows in calendar months.
+SUMMARY_LOOKBACK_MONTHS = {"MoM": 1, "YoY": 12}
 
 # ---------- signal ----------
 INDICATOR = "ISM Manufacturing PMI"
