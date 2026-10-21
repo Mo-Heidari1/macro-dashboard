@@ -11,8 +11,8 @@ Get the numbers from ismworld.org's monthly Report on Business (headline
 PMI + the 10 sub-indices).
 
 Usage:
-    python update_ism.py                    interactive prompts
-    python update_ism.py --date 2026-07-01 --pmi 53.5 --new-orders 57.0 \\
+    python scripts/update_ism.py                    interactive prompts
+    python scripts/update_ism.py --date 2026-07-01 --pmi 53.5 --new-orders 57.0 \\
         --production 53.0 --employment 50.0 --deliveries 56.0 \\
         --inventories 51.0 --customer-inventories 43.0 --prices 70.0 \\
         --order-backlog 51.0 --exports 49.0 --imports 53.0
@@ -23,9 +23,13 @@ import os
 import sys
 import pandas as pd
 
-from ism_calculations import SUBINDEX_COLS
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-CSV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ism_history.csv")
+from src.core import paths  # noqa: E402
+from src.modules.ism_manufacturing.config import HISTORY_FILE, SUBINDEX_COLS  # noqa: E402
+
+# Proprietary data: always read and write the full local history.
+CSV_PATH = paths.local_path(HISTORY_FILE)
 
 # CLI flag name -> ism_history.csv column name
 ARG_TO_COL = {

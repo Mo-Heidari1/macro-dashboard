@@ -1,16 +1,15 @@
 """
 US Treasury Benchmark Yields — Summary / Curve Analysis / Spread Analysis /
-Implied Inflation. Unchanged from the original single-page app.py, just
-moved onto its own page.
+Implied Inflation.
 """
 
 import streamlit as st
-import plotly.graph_objects as go
 
-from calculations import (
-    load_history, summary_table, implied_inflation, curve_on_date,
-    spread_series, NOMINAL_TENORS, TENOR_COLS,
+from src.core import charts
+from src.modules.treasury_yields.calculations import (
+    load_history, summary_table, implied_inflation, curve_on_date, spread_series,
 )
+from src.modules.treasury_yields.config import TENOR_COLS
 
 st.set_page_config(page_title="Treasury Yields — US", layout="wide")
 st.title("US Treasury Benchmark Yields")
@@ -40,9 +39,8 @@ with tab_summary:
     st.subheader("History — pick a tenor")
     tenor_pick = st.selectbox("Tenor", TENOR_COLS, index=TENOR_COLS.index("10yr"))
     hist = df[["Date", tenor_pick]].dropna()
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=hist["Date"], y=hist[tenor_pick], mode="lines", name=tenor_pick))
-    fig.update_layout(height=400, yaxis_title="Yield %", margin=dict(t=20))
+    fig = charts.line_chart(hist["Date"], hist[tenor_pick], tenor_pick,
+                            height=400, yaxis_title="Yield %")
     st.plotly_chart(fig, use_container_width=True)
 
 # ---------- Curve Analysis tab ----------
@@ -54,13 +52,13 @@ with tab_curve:
         "Compare snapshot dates", options=list(available_dates.dt.strftime("%Y-%m-%d")),
         default=[d.strftime("%Y-%m-%d") for d in default_dates],
     )
-    fig = go.Figure()
+    traces = []
     for d in picked:
         curve = curve_on_date(df, date=d)
-        fig.add_trace(go.Scatter(x=curve["Maturity (yrs)"], y=curve["Yield %"],
-                                  mode="lines+markers", name=d))
-    fig.update_layout(height=450, xaxis_title="Maturity (years)", yaxis_title="Yield %",
-                       xaxis_type="log", margin=dict(t=20))
+        traces.append({"x": curve["Maturity (yrs)"], "y": curve["Yield %"],
+                       "name": d, "mode": "lines+markers"})
+    fig = charts.multi_line_chart(traces, height=450, xaxis_title="Maturity (years)",
+                                  yaxis_title="Yield %", xaxis_type="log")
     st.plotly_chart(fig, use_container_width=True)
 
 # ---------- Spread Analysis tab ----------
@@ -70,12 +68,9 @@ with tab_spread:
     tenor_a = col1.selectbox("Maturity A", TENOR_COLS, index=TENOR_COLS.index("10yr"))
     tenor_b = col2.selectbox("Maturity B", TENOR_COLS, index=TENOR_COLS.index("1yr"))
     sp = spread_series(df, tenor_a, tenor_b)
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=sp["Date"], y=sp["Spread"], mode="lines",
-                              name=f"{tenor_a} - {tenor_b}"))
-    fig.add_hline(y=0, line_dash="dash", line_color="gray")
-    fig.update_layout(height=400, yaxis_title="Spread (pp)",
-                       title=f"{tenor_a} - {tenor_b} Spread", margin=dict(t=40))
+    fig = charts.line_chart(sp["Date"], sp["Spread"], f"{tenor_a} - {tenor_b}",
+                            height=400, yaxis_title="Spread (pp)", hline=0,
+                            title=f"{tenor_a} - {tenor_b} Spread", margin_top=40)
     st.plotly_chart(fig, use_container_width=True)
     st.metric(f"Current {tenor_a} - {tenor_b} spread", f"{sp['Spread'].iloc[-1]:+.2f} pp")
 
@@ -90,7 +85,6 @@ with tab_inflation:
         st.dataframe(infl.style.format({"Nominal": "{:.2f}", "TIPS": "{:.2f}",
                                          "Implied Inflation": "{:.2f}"}),
                      use_container_width=True, hide_index=True)
-        fig = go.Figure()
-        fig.add_trace(go.Bar(x=infl["Maturity"], y=infl["Implied Inflation"]))
-        fig.update_layout(height=350, yaxis_title="Implied Inflation %", margin=dict(t=20))
+        fig = charts.bar_chart(infl["Maturity"], infl["Implied Inflation"],
+                               height=350, yaxis_title="Implied Inflation %")
         st.plotly_chart(fig, use_container_width=True)

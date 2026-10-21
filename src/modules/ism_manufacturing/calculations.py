@@ -1,5 +1,5 @@
 """
-ISM Manufacturing Index — calculation layer.
+ISM Manufacturing — calculation layer.
 
 Replicates the logic from ISM_Manufacturing_Index_Updated.xlsx:
 - Summary: current value + MoM/YoY change per sub-index
@@ -12,94 +12,70 @@ Replicates the logic from ISM_Manufacturing_Index_Updated.xlsx:
   month and category, from the Sectors sheet.
 - recompute_pmi_from_subindices(): reconstructs headline PMI from its five
   weighted components, as a validation + "how the composite works" check.
+and adds get_signal(): the headline PMI reading in the shared scorecard schema.
 
 Data cadence: MONTHLY (one row per month) — unlike the weekly yields data,
 there's no WoW/QoQ distinction here, so only MoM and YoY are computed.
 """
 
-import os
 import pandas as pd
 
-# All 11 published series, headline first, in the same order as the
-# workbook's Heat Map Summary sheet.
-SUBINDEX_COLS = [
-    "PMI", "New Orders", "Production", "Employment", "Deliveries",
-    "Inventories", "Customer Inventories", "Prices", "Order Backlog",
-    "Exports", "Imports",
-]
-
-# ISM's official headline PMI composite weights.
-PMI_WEIGHTS = {
-    "New Orders": 0.30,
-    "Production": 0.25,
-    "Employment": 0.20,
-    "Deliveries": 0.15,
-    "Inventories": 0.10,
-}
-
-OFFSET_MOM = 1
-OFFSET_YOY = 12
+from src.core import paths
+from src.core.signals import direction_label
+from src.core.transforms import change_at_offset, last_complete_row, window_mean_change, zscore_last
+from src.modules.ism_manufacturing import config as cfg
 
 
-def load_ism_history(path=None) -> pd.DataFrame:
-    """Load the historical monthly ISM sub-index series, sorted ascending by date."""
+def load_ism_history(path: str | None = None) -> pd.DataFrame:
+    """Load the monthly ISM sub-index series (data/local, else data/sample), sorted by date."""
     if path is None:
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ism_history.csv")
+        path, _ = paths.resolve_data_file(cfg.HISTORY_FILE)
     df = pd.read_csv(path, parse_dates=["Date"])
     return df.sort_values("Date").reset_index(drop=True)
 
 
-def load_ism_sectors(path=None) -> pd.DataFrame:
+def load_ism_sectors(path: str | None = None) -> pd.DataFrame:
     """Load the long-format sector growth/contraction data (Category, Date, Industry, Direction, Score)."""
     if path is None:
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ism_sectors.csv")
+        path, _ = paths.resolve_data_file(cfg.SECTORS_FILE)
     return pd.read_csv(path, parse_dates=["Date"])
 
 
 def classify(value) -> str:
     """50.0 is the expansion/contraction threshold for every diffusion index here."""
     if pd.isna(value):
-        return "N/A"
-    if value > 50:
-        return "Growth"
-    if value < 50:
-        return "Contraction"
-    return "Neutral"
+        return cfg.STATUS_LABELS["missing"]
+    if value > cfg.EXPANSION_THRESHOLD:
+        return cfg.STATUS_LABELS["above"]
+    if value < cfg.EXPANSION_THRESHOLD:
+        return cfg.STATUS_LABELS["below"]
+    return cfg.STATUS_LABELS["at"]
 
 
 def summary_table(df: pd.DataFrame) -> pd.DataFrame:
     """Current value, classification, and MoM/YoY change for every sub-index."""
     latest = df.iloc[-1]
     out = []
-    for col in SUBINDEX_COLS:
+    for col in cfg.SUBINDEX_COLS:
         cur = latest[col]
-
-        def chg(offset):
-            if len(df) <= offset:
-                return None
-            prior = df.iloc[-1 - offset][col]
-            if pd.isna(cur) or pd.isna(prior):
-                return None
-            return round(cur - prior, 4)
-
         out.append({
             "Sub-Index": col,
             "Current": cur,
             "Status": classify(cur),
-            "MoM": chg(OFFSET_MOM),
-            "YoY": chg(OFFSET_YOY),
+            "MoM": change_at_offset(df, col, cfg.OFFSET_MOM),
+            "YoY": change_at_offset(df, col, cfg.OFFSET_YOY),
         })
     return pd.DataFrame(out)
 
 
-def heatmap_data(df: pd.DataFrame, n_months: int = None) -> pd.DataFrame:
+def heatmap_data(df: pd.DataFrame, n_months: int | None = None) -> pd.DataFrame:
     """
     Months x sub-indices matrix (Date-indexed), matching the Heat Map
     Summary sheet's shape. Feed straight into a Plotly go.Heatmap with a
     diverging colorscale centered on 50. Pass n_months to limit to the
     most recent N months (default: all).
     """
-    out = df.set_index("Date")[SUBINDEX_COLS]
+    out = df.set_index("Date")[cfg.SUBINDEX_COLS]
     if n_months is not None:
         out = out.tail(n_months)
     return out
@@ -128,7 +104,50 @@ def recompute_pmi_from_subindices(df: pd.DataFrame) -> pd.DataFrame:
     is built.
     """
     out = df[["Date", "PMI"]].copy()
-    out["Recomputed PMI"] = sum(df[col] * w for col, w in PMI_WEIGHTS.items())
+    out["Recomputed PMI"] = sum(df[col] * w for col, w in cfg.PMI_WEIGHTS.items())
     out["Recomputed PMI"] = out["Recomputed PMI"].round(2)
     out["Diff"] = (out["PMI"] - out["Recomputed PMI"]).round(2)
     return out
+
+
+def pmi_regime(level: float, momentum: float | None) -> str:
+    """Quadrant regime from the PMI level vs 50 and the sign of its momentum."""
+    side = "above" if level >= cfg.REGIME_LEVEL else "below"
+    trend = "rising" if momentum is None or momentum >= 0 else "falling"
+    return cfg.REGIMES[(side, trend)]
+
+
+def get_signal(df: pd.DataFrame) -> dict:
+    """
+    Headline PMI reading in the shared signal schema, as of the last month
+    with PMI populated. Change is MoM; direction and regime use the 3-month
+    average vs the prior 3-month average; z-score is vs the trailing
+    ZSCORE_WINDOW_MONTHS.
+    """
+    col = cfg.SIGNAL_COL
+    i = last_complete_row(df, [col])
+    if i is None:
+        raise ValueError(f"No row has {col} populated")
+    history = df.iloc[: i + 1]
+    series = history[col].dropna()
+    level = float(series.iloc[-1])
+
+    change = round(level - float(series.iloc[-2]), 4) if len(series) > 1 else None
+    momentum = window_mean_change(series, cfg.DIRECTION_WINDOW)
+    momentum = None if momentum is None else round(momentum, 4)
+    z = zscore_last(series.tail(cfg.ZSCORE_WINDOW_MONTHS), cfg.ZSCORE_MIN_PERIODS)
+
+    regime = pmi_regime(level, momentum)
+    return {
+        "indicator": cfg.INDICATOR,
+        "region": cfg.REGION,
+        "type": cfg.TYPE,
+        "as_of": history["Date"].iloc[-1].strftime("%Y-%m-%d"),
+        "level": level,
+        "change": change,
+        "zscore": None if z is None else round(z, 2),
+        "direction": direction_label(momentum, cfg.DIRECTION_BAND, cfg.DIRECTION_LABELS),
+        "regime": regime,
+        "market_read": cfg.MARKET_READ[regime],
+        "extreme": level > cfg.EXTREME_HIGH or level < cfg.EXTREME_LOW,
+    }
