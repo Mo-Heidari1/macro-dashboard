@@ -1,73 +1,85 @@
 # Macro Dashboard
 
-A multi-page Streamlit app tracking macro indicators for the trading course:
-US Treasury benchmark yields today, ISM Manufacturing PMI now added, more
-indicators later. Each indicator is isolated in its own calculation module
-and its own page — matching how the source Excel workbooks are already
-separated one-per-indicator — while sharing one running dashboard.
+A multi-page Streamlit dashboard that tracks leading, coincident and lagging
+macroeconomic indicators and turns them into a read on the macro regime and
+what it implies for rates, equities and the dollar. Every number on the page
+is traceable to a named source.
+
+## Indicators
+
+**US Treasury Yields & Curve** (Treasury.gov, FRED). The yield curve is one
+of the most reliable leading indicators of the US cycle: the 2s10s spread
+compresses or inverts as markets price policy tightening and slower growth,
+and re-steepens ahead of easing. The page shows current yields and changes by
+tenor, curve snapshots across dates, any tenor-vs-tenor spread over time, and
+breakeven (implied) inflation from nominal minus TIPS yields. The module's
+signal classifies the latest four-week curve move as a bull/bear steepener or
+flattener.
+
+**ISM Manufacturing PMI** (Institute for Supply Management). A diffusion
+index where 50 separates expansion from contraction; it leads industrial
+production and corporate earnings, and its New Orders and Prices components
+are closely watched for growth and inflation turns. The page shows the
+headline and all ten sub-indices, a sub-index heatmap, industry-level
+growth/contraction rankings, and a reconstruction of the headline from its
+weighted components. The module's signal places the PMI in one of four
+regimes (Expansion, Slowdown, Contraction, Recovery) from its level versus 50
+and its three-month momentum.
+
+The landing page sets the PMI against the 10-year yield as a cross-check
+between the growth signal and the rates market.
+
+## Signals
+
+Every module exposes `get_signal(df)` returning one record in a shared
+schema (level, change, z-score, direction, regime, a one-line market read,
+and the "as of" date of the last complete observation). Thresholds and
+labels live in each module's `config.py`. These records will feed a
+cross-indicator regime scorecard on the landing page.
+
+## Data and licensing
+
+Public series (Treasury.gov, FRED) are committed in full under
+`data/sample/`. ISM data is proprietary: the full history stays in
+`data/local/` (git-ignored), and the public deployment runs on a small
+sample — the last 36 months of the published headline PMI, with sub-indices
+and industry rankings replaced by clearly labelled illustrative values. See
+[`data/README.md`](data/README.md) for each file's source, licence and update
+frequency.
 
 ## Structure
-- `Home.py` — landing page: cross-indicator summary (current 10yr yield,
-  2s10s spread, headline PMI) and a PMI-vs-10yr-yield overlay chart.
-- `pages/1_Treasury_Yields.py` — Summary, Curve Analysis, Spread Analysis,
-  Implied Inflation tabs (unchanged from the original single-page app).
-- `pages/2_ISM_Manufacturing.py` — Overview, Sub-Index Heatmap, Sector
-  Breakdown, Composite Check, and a manual monthly-update form.
-- `calculations.py` / `ism_calculations.py` — pandas calculation layers,
-  one per indicator, both validated line-by-line against their source
-  Excel workbooks' cached formula results.
-- `live_sources.py` / `update_data.py` — Treasury.gov + FRED fetch
-  functions and the CLI that appends fresh yields data.
-- `update_ism.py` — CLI for the ISM manual-update workflow (see below).
-- `scripts/extract_ism.py` — one-time extraction of
-  `ISM_Manufacturing_Index_Updated.xlsx` into `ism_history.csv` /
-  `ism_sectors.csv`. Re-run only if the source workbook is replaced.
-- `yields_history.csv` / `ism_history.csv` / `ism_sectors.csv` — the
-  persisted data the app reads. CSV, not pickle — an earlier pickle-based
-  version broke across machines on a numpy/pandas version mismatch when
-  unpickling `datetime64[us]` columns.
+
+```
+Home.py                      landing page: cross-indicator summary
+pages/                       one page per indicator (UI only)
+src/core/                    shared paths, loaders, transforms, charts, signal schema
+src/modules/<indicator>/     config.py (series, thresholds, labels) + calculations.py (pure functions)
+data/sample/                 committed public data and samples
+data/local/                  full / proprietary data (git-ignored)
+scripts/                     data refresh and manual-entry tools
+tests/                       pytest suite
+```
 
 ## Run it
+
 ```
 pip install -r requirements.txt
-streamlit run Home.py
+python -m streamlit run Home.py
+python -m pytest
 ```
 
-## Keeping yields current
-`live_sources.py` has working fetch functions for:
-- Nominal yields (Treasury.gov daily par yield curve)
-- TIPS/real yields (Treasury.gov daily par real yield curve)
-- Fed Funds effective rate (FRED API — needs a free key: https://fred.stlouisfed.org/docs/api/api_key.html)
+## Keeping the data current
 
-```
-python update_data.py YOUR_FRED_API_KEY
-```
-Pulls current data and appends new rows to `yields_history.csv`, deduping
-on Date.
+- **Treasury yields:** `python scripts/update_yields.py YOUR_FRED_API_KEY`
+  appends the latest Treasury.gov curves and the FRED effective Fed Funds rate
+  (free key: https://fred.stlouisfed.org/docs/api/api_key.html).
+- **ISM Manufacturing:** ISM publishes no free, terms-compliant API, so each
+  month's Report On Business figures are entered by hand — either in the ISM
+  page's "Add This Month's Data" tab (local data only) or with
+  `python scripts/update_ism.py` (interactive, or pass the values as flags).
+  `scripts/extract_ism.py` rebuilds the local CSVs from the source workbook,
+  and `scripts/build_ism_sample.py` regenerates the committed sample.
 
-Note: Treasury.gov data is DAILY, but this dashboard tracks WEEKLY
-snapshots. The WoW/MoM/QoQ/YoY row-offsets in `calculations.py` (1/4/13/52)
-are calibrated to weekly data.
-
-## Keeping ISM current
-**There is no free, terms-compliant API for ISM's data** — it's a
-proprietary, licensed report (confirmed in the source workbook's own NOTES
-sheet, which documents the same manual process). You still have to type in
-the numbers yourself each month from ismworld.org's Report on Business —
-this dashboard just makes that a 30-second task instead of a multi-sheet
-Excel edit. Two ways to do it, pick whichever is more convenient:
-
-1. **In the app** — open the ISM Manufacturing page → "Add This Month's
-   Data" tab, fill in whichever sub-indices have been published, submit.
-2. **CLI** —
-   ```
-   python update_ism.py --date 2026-07-01 --pmi 53.9 --new-orders 58.0 \
-       --production 54.0 --employment 51.0 --deliveries 55.0 \
-       --inventories 50.0 --customer-inventories 44.0 --prices 72.0 \
-       --order-backlog 52.0 --exports 49.5 --imports 53.5
-   ```
-   or run `python update_ism.py` with no args for interactive prompts.
-
-Both paths compute `Change`/MoM automatically, dedupe on Date (re-running
-for the same month overwrites rather than duplicates), and leave every
-other month untouched.
+Stored data is CSV only. An earlier pickle-based version broke across
+machines on a pandas/numpy version mismatch when unpickling `datetime64`
+columns.
