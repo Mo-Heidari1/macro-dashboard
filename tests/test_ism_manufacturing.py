@@ -182,3 +182,18 @@ def test_summary_reports_each_series_last_month():
     assert (s.loc["PMI", "As of"], s.loc["PMI", "Current"]) == ("2024-02-01", 51.0)
     assert s.loc["Prices", "As of"] == "2024-03-01"
     assert s.loc["New Orders", "Status"] == "N/A"
+
+
+def test_sector_rankings_break_ties_by_industry_regardless_of_input_order():
+    rows = [
+        ("PMI", "2026-06-01", name, "Growth", score)
+        for name, score in [("Wood", 3), ("Apparel", 3), ("Paper", 5), ("Chemicals", 3)]
+    ]
+    df = pd.DataFrame(
+        rows, columns=["Category", "Date", "Industry", "Direction", "Score"]
+    )
+    df["Date"] = pd.to_datetime(df["Date"])
+    expected = ["Paper", "Apparel", "Chemicals", "Wood"]
+    for seed in range(5):
+        shuffled = df.sample(frac=1, random_state=seed)
+        assert sector_rankings(shuffled, "2026-06-01")["Industry"].tolist() == expected

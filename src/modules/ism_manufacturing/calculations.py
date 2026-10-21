@@ -102,7 +102,8 @@ def sector_rankings(
     Growth/contraction/score per industry for a given month and category
     (headline 'PMI' or one of the sub-indices ISM publishes a breakdown
     for: New Orders, Production, Employment, Deliveries, Inventories,
-    Customer Inventories). Sorted by Score descending (strongest growth first).
+    Customer Inventories). Sorted by Score descending (strongest growth first),
+    ties broken alphabetically by Industry so the order is deterministic.
     """
     date = pd.Timestamp(date)
     out = sectors_df[
@@ -110,7 +111,7 @@ def sector_rankings(
     ]
     return (
         out[["Industry", "Direction", "Score"]]
-        .sort_values("Score", ascending=False)
+        .sort_values(["Score", "Industry"], ascending=[False, True], kind="stable")
         .reset_index(drop=True)
     )
 
