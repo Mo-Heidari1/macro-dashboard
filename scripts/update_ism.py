@@ -21,12 +21,13 @@ Usage:
 import argparse
 import os
 import sys
+
 import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.core import paths  # noqa: E402
-from src.modules.ism_manufacturing.config import HISTORY_FILE, SUBINDEX_COLS  # noqa: E402
+from src.core import paths
+from src.modules.ism_manufacturing.config import HISTORY_FILE, SUBINDEX_COLS
 
 # Proprietary data: always read and write the full local history.
 CSV_PATH = paths.local_path(HISTORY_FILE)
@@ -49,7 +50,9 @@ ARG_TO_COL = {
 
 def prompt_for_values() -> dict:
     print("Enter this month's ISM Manufacturing Report on Business values.")
-    print("(Leave blank and press Enter to skip a sub-index that hasn't been published yet.)\n")
+    print(
+        "(Leave blank and press Enter to skip a sub-index that hasn't been published yet.)\n"
+    )
     date_str = input("Report month (YYYY-MM-01): ").strip()
     values = {"Date": date_str}
     for col in SUBINDEX_COLS:
@@ -74,7 +77,9 @@ def update(values: dict):
     for col in SUBINDEX_COLS:
         new_row[col] = values.get(col)
 
-    history = history[history["Date"] != date]  # dedupe: drop existing row for this month, if any
+    history = history[
+        history["Date"] != date
+    ]  # dedupe: drop existing row for this month, if any
     history = pd.concat([history, pd.DataFrame([new_row])], ignore_index=True)
     history = history.sort_values("Date").reset_index(drop=True)
     history.to_csv(CSV_PATH, index=False)
@@ -96,7 +101,9 @@ def update(values: dict):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--date", help="Report month, e.g. 2026-07-01")
     for arg_name in ARG_TO_COL:
         parser.add_argument(f"--{arg_name.replace('_', '-')}", type=float, default=None)

@@ -1,0 +1,8 @@
+[tool.ruff]
+# Ruff defaults (line length 88, default rule set); only the target is pinned.
+# Markdown is excluded so CLAUDE.md / README code samples keep their layout.
+target-version = "py312"
+extend-exclude = ["*.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

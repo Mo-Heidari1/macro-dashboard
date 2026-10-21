@@ -22,7 +22,12 @@ import pandas as pd
 
 from src.core import paths
 from src.core.signals import direction_label
-from src.core.transforms import change_at_offset, last_complete_row, window_mean_change, zscore_last
+from src.core.transforms import (
+    change_at_offset,
+    last_complete_row,
+    window_mean_change,
+    zscore_last,
+)
 from src.modules.ism_manufacturing import config as cfg
 
 
@@ -58,13 +63,15 @@ def summary_table(df: pd.DataFrame) -> pd.DataFrame:
     out = []
     for col in cfg.SUBINDEX_COLS:
         cur = latest[col]
-        out.append({
-            "Sub-Index": col,
-            "Current": cur,
-            "Status": classify(cur),
-            "MoM": change_at_offset(df, col, cfg.OFFSET_MOM),
-            "YoY": change_at_offset(df, col, cfg.OFFSET_YOY),
-        })
+        out.append(
+            {
+                "Sub-Index": col,
+                "Current": cur,
+                "Status": classify(cur),
+                "MoM": change_at_offset(df, col, cfg.OFFSET_MOM),
+                "YoY": change_at_offset(df, col, cfg.OFFSET_YOY),
+            }
+        )
     return pd.DataFrame(out)
 
 
@@ -81,7 +88,9 @@ def heatmap_data(df: pd.DataFrame, n_months: int | None = None) -> pd.DataFrame:
     return out
 
 
-def sector_rankings(sectors_df: pd.DataFrame, date, category: str = "PMI") -> pd.DataFrame:
+def sector_rankings(
+    sectors_df: pd.DataFrame, date, category: str = "PMI"
+) -> pd.DataFrame:
     """
     Growth/contraction/score per industry for a given month and category
     (headline 'PMI' or one of the sub-indices ISM publishes a breakdown
@@ -89,8 +98,14 @@ def sector_rankings(sectors_df: pd.DataFrame, date, category: str = "PMI") -> pd
     Customer Inventories). Sorted by Score descending (strongest growth first).
     """
     date = pd.Timestamp(date)
-    out = sectors_df[(sectors_df["Date"] == date) & (sectors_df["Category"] == category)]
-    return out[["Industry", "Direction", "Score"]].sort_values("Score", ascending=False).reset_index(drop=True)
+    out = sectors_df[
+        (sectors_df["Date"] == date) & (sectors_df["Category"] == category)
+    ]
+    return (
+        out[["Industry", "Direction", "Score"]]
+        .sort_values("Score", ascending=False)
+        .reset_index(drop=True)
+    )
 
 
 def recompute_pmi_from_subindices(df: pd.DataFrame) -> pd.DataFrame:
@@ -146,7 +161,9 @@ def get_signal(df: pd.DataFrame) -> dict:
         "level": level,
         "change": change,
         "zscore": None if z is None else round(z, 2),
-        "direction": direction_label(momentum, cfg.DIRECTION_BAND, cfg.DIRECTION_LABELS),
+        "direction": direction_label(
+            momentum, cfg.DIRECTION_BAND, cfg.DIRECTION_LABELS
+        ),
         "regime": regime,
         "market_read": cfg.MARKET_READ[regime],
         "extreme": level > cfg.EXTREME_HIGH or level < cfg.EXTREME_LOW,

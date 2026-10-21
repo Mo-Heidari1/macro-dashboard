@@ -20,9 +20,9 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.core import paths  # noqa: E402
-from src.core.loaders import fetch_fred_series, fetch_treasury_curve  # noqa: E402
-from src.modules.treasury_yields import config as cfg  # noqa: E402
+from src.core import paths
+from src.core.loaders import fetch_fred_series, fetch_treasury_curve
+from src.modules.treasury_yields import config as cfg
 
 
 def build_latest_snapshot(year: int, fred_api_key: str) -> pd.DataFrame:
@@ -34,8 +34,12 @@ def build_latest_snapshot(year: int, fred_api_key: str) -> pd.DataFrame:
     """
     nom = fetch_treasury_curve(year, cfg.NOMINAL_COL_MAP)
     tips = fetch_treasury_curve(year, cfg.TIPS_COL_MAP, real=True)
-    ff = fetch_fred_series(cfg.FED_FUNDS_SERIES, fred_api_key, start_date=f"{year}-01-01",
-                           value_name="Fed Funds")
+    ff = fetch_fred_series(
+        cfg.FED_FUNDS_SERIES,
+        fred_api_key,
+        start_date=f"{year}-01-01",
+        value_name="Fed Funds",
+    )
 
     merged = nom.merge(tips, on="Date", how="outer").merge(ff, on="Date", how="outer")
     merged = merged.sort_values("Date").reset_index(drop=True)
@@ -53,10 +57,14 @@ def main():
 
     print(f"Fetching {year} data from Treasury.gov and FRED...")
     fresh = build_latest_snapshot(year, fred_api_key)
-    print(f"Got {len(fresh)} rows from live sources, latest date: {fresh['Date'].max()}")
+    print(
+        f"Got {len(fresh)} rows from live sources, latest date: {fresh['Date'].max()}"
+    )
 
     history = pd.read_csv(csv_path, parse_dates=["Date"])
-    print(f"Existing history: {len(history)} rows, latest date: {history['Date'].max()}")
+    print(
+        f"Existing history: {len(history)} rows, latest date: {history['Date'].max()}"
+    )
 
     combined = pd.concat([history, fresh], ignore_index=True)
     combined = combined.drop_duplicates(subset="Date", keep="last")
@@ -64,8 +72,10 @@ def main():
     combined.to_csv(csv_path, index=False)
 
     added = len(combined) - len(history)
-    print(f"Done. Added {added} new row(s). History now has {len(combined)} rows "
-          f"through {combined['Date'].max().strftime('%Y-%m-%d')}.")
+    print(
+        f"Done. Added {added} new row(s). History now has {len(combined)} rows "
+        f"through {combined['Date'].max().strftime('%Y-%m-%d')}."
+    )
     print("Restart (or refresh) your Streamlit app to see the new data.")
 
 

@@ -11,14 +11,19 @@ sub-indices and sector rankings, all labelled as such.
 
 import os
 
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
 from src.core import charts, paths
 from src.modules.ism_manufacturing import config as cfg
 from src.modules.ism_manufacturing.calculations import (
-    load_ism_history, load_ism_sectors, summary_table, heatmap_data,
-    classify, sector_rankings, recompute_pmi_from_subindices,
+    classify,
+    heatmap_data,
+    load_ism_history,
+    load_ism_sectors,
+    recompute_pmi_from_subindices,
+    sector_rankings,
+    summary_table,
 )
 
 SUBINDEX_COLS = cfg.SUBINDEX_COLS
@@ -33,8 +38,10 @@ _, history_is_sample = paths.resolve_data_file(cfg.HISTORY_FILE)
 _, sectors_is_sample = paths.resolve_data_file(cfg.SECTORS_FILE)
 latest_date = df["Date"].max()
 latest_pmi = df.iloc[-1]["PMI"]
-st.caption(f"Data through {latest_date.strftime('%B %Y')} · monthly · "
-           f"{len(df):,} observations since {df['Date'].min().strftime('%Y')}")
+st.caption(
+    f"Data through {latest_date.strftime('%B %Y')} · monthly · "
+    f"{len(df):,} observations since {df['Date'].min().strftime('%Y')}"
+)
 if history_is_sample:
     st.info(
         f"**Sample data.** The headline PMI is ISM's published figure for the last "
@@ -46,7 +53,13 @@ col1, col2 = st.columns([1, 3])
 col1.metric("Headline PMI", f"{latest_pmi:.1f}", classify(latest_pmi))
 
 tab_overview, tab_heatmap, tab_sectors, tab_composite, tab_update = st.tabs(
-    ["Overview", "Sub-Index Heatmap", "Sector Breakdown", "Composite Check", "Add This Month's Data"]
+    [
+        "Overview",
+        "Sub-Index Heatmap",
+        "Sector Breakdown",
+        "Composite Check",
+        "Add This Month's Data",
+    ]
 )
 
 # ---------- Overview tab ----------
@@ -57,13 +70,19 @@ with tab_overview:
     s = summary_table(df)
 
     def highlight_status(val):
-        color = {"Growth": "#c6efce", "Contraction": "#ffc7ce", "Neutral": "#fff2cc"}.get(val, "")
+        color = {
+            "Growth": "#c6efce",
+            "Contraction": "#ffc7ce",
+            "Neutral": "#fff2cc",
+        }.get(val, "")
         return f"background-color: {color}" if color else ""
 
     st.dataframe(
-        s.style.format({"Current": "{:.1f}", "MoM": "{:+.1f}", "YoY": "{:+.1f}"})
-         .map(highlight_status, subset=["Status"]),
-        use_container_width=True, hide_index=True,
+        s.style.format({"Current": "{:.1f}", "MoM": "{:+.1f}", "YoY": "{:+.1f}"}).map(
+            highlight_status, subset=["Status"]
+        ),
+        use_container_width=True,
+        hide_index=True,
     )
 
     st.subheader("History — pick a sub-index")
@@ -71,9 +90,15 @@ with tab_overview:
     if history_is_sample and sub_pick not in cfg.SAMPLE_REAL_COLUMNS:
         st.caption(ILLUSTRATIVE)
     hist = df[["Date", sub_pick]].dropna()
-    fig = charts.line_chart(hist["Date"], hist[sub_pick], sub_pick, height=400,
-                            yaxis_title=sub_pick, hline=cfg.EXPANSION_THRESHOLD,
-                            hline_annotation="50 = expansion/contraction line")
+    fig = charts.line_chart(
+        hist["Date"],
+        hist[sub_pick],
+        sub_pick,
+        height=400,
+        yaxis_title=sub_pick,
+        hline=cfg.EXPANSION_THRESHOLD,
+        hline_annotation="50 = expansion/contraction line",
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 # ---------- Sub-Index Heatmap tab ----------
@@ -81,12 +106,18 @@ with tab_heatmap:
     st.subheader("Sub-index heatmap")
     if history_is_sample:
         st.caption("Illustrative data for every row except the headline PMI.")
-    n_months = st.slider("Months to show", min_value=12, max_value=min(120, len(df)), value=36, step=12)
+    n_months = st.slider(
+        "Months to show", min_value=12, max_value=min(120, len(df)), value=36, step=12
+    )
     hm = heatmap_data(df, n_months)
     fig = charts.heatmap_chart(
-        hm.T.values, hm.index.strftime("%Y-%m"), hm.columns,
-        zmid=cfg.EXPANSION_THRESHOLD, colorbar_title="Index",
-        hovertemplate="%{y} — %{x}: %{z:.1f}<extra></extra>", height=500,
+        hm.T.values,
+        hm.index.strftime("%Y-%m"),
+        hm.columns,
+        zmid=cfg.EXPANSION_THRESHOLD,
+        colorbar_title="Index",
+        hovertemplate="%{y} — %{x}: %{z:.1f}<extra></extra>",
+        height=500,
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -99,18 +130,23 @@ with tab_sectors:
     available_categories = sorted(sectors["Category"].unique())
     col_a, col_b = st.columns(2)
     month_pick = col_a.selectbox(
-        "Month", available_months,
+        "Month",
+        available_months,
         format_func=lambda d: pd.Timestamp(d).strftime("%B %Y"),
     )
-    category_pick = col_b.selectbox("Category", available_categories,
-                                     index=available_categories.index("PMI") if "PMI" in available_categories else 0)
+    category_pick = col_b.selectbox(
+        "Category",
+        available_categories,
+        index=available_categories.index("PMI") if "PMI" in available_categories else 0,
+    )
     ranked = sector_rankings(sectors, month_pick, category_pick)
     if ranked.empty:
         st.info("No sector data for this month/category combination.")
     else:
         st.dataframe(
             ranked.style.map(highlight_status, subset=["Direction"]),
-            use_container_width=True, hide_index=True,
+            use_container_width=True,
+            hide_index=True,
         )
 
 # ---------- Composite Check tab ----------
@@ -123,21 +159,31 @@ with tab_composite:
         "but it should track closely, which is the point: it shows how the index is built."
     )
     if history_is_sample:
-        st.caption("Illustrative data: the recomputed line uses synthetic sub-indices; "
-                   "only the published PMI line is real.")
+        st.caption(
+            "Illustrative data: the recomputed line uses synthetic sub-indices; "
+            "only the published PMI line is real."
+        )
     recomp = recompute_pmi_from_subindices(df).tail(24)
     fig = charts.multi_line_chart(
         [
             {"x": recomp["Date"], "y": recomp["PMI"], "name": "Published PMI"},
-            {"x": recomp["Date"], "y": recomp["Recomputed PMI"], "name": "Recomputed PMI",
-             "dash": "dot"},
+            {
+                "x": recomp["Date"],
+                "y": recomp["Recomputed PMI"],
+                "name": "Recomputed PMI",
+                "dash": "dot",
+            },
         ],
-        height=400, yaxis_title="Index",
+        height=400,
+        yaxis_title="Index",
     )
     st.plotly_chart(fig, use_container_width=True)
     st.dataframe(
-        recomp.style.format({"PMI": "{:.1f}", "Recomputed PMI": "{:.1f}", "Diff": "{:+.1f}"}),
-        use_container_width=True, hide_index=True,
+        recomp.style.format(
+            {"PMI": "{:.1f}", "Recomputed PMI": "{:.1f}", "Diff": "{:+.1f}"}
+        ),
+        use_container_width=True,
+        hide_index=True,
     )
 
 # ---------- Add This Month's Data tab ----------
@@ -150,8 +196,10 @@ with tab_update:
         "a multi-sheet edit."
     )
     if history_is_sample:
-        st.info("Manual entry needs the full local dataset (data/local/), so it is "
-                "turned off while the page runs on sample data.")
+        st.info(
+            "Manual entry needs the full local dataset (data/local/), so it is "
+            "turned off while the page runs on sample data."
+        )
     else:
         with st.form("ism_update_form"):
             next_month = (latest_date + pd.DateOffset(months=1)).replace(day=1)
@@ -159,8 +207,14 @@ with tab_update:
             cols = st.columns(3)
             inputs = {}
             for i, sub in enumerate(SUBINDEX_COLS):
-                inputs[sub] = cols[i % 3].number_input(sub, min_value=0.0, max_value=100.0, step=0.1,
-                                                         value=None, format="%.1f")
+                inputs[sub] = cols[i % 3].number_input(
+                    sub,
+                    min_value=0.0,
+                    max_value=100.0,
+                    step=0.1,
+                    value=None,
+                    format="%.1f",
+                )
             submitted = st.form_submit_button("Save this month")
 
         if submitted:
@@ -171,4 +225,6 @@ with tab_update:
             history = history.sort_values("Date").reset_index(drop=True)
             os.makedirs(paths.DATA_LOCAL, exist_ok=True)
             history.to_csv(paths.local_path(cfg.HISTORY_FILE), index=False)
-            st.success(f"Saved {date.strftime('%B %Y')}. Refresh the page to see it reflected everywhere.")
+            st.success(
+                f"Saved {date.strftime('%B %Y')}. Refresh the page to see it reflected everywhere."
+            )

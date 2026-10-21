@@ -15,8 +15,16 @@ TYPES = ("leading", "coincident", "lagging")
 DEFAULT_DIRECTION_LABELS = {"up": "improving", "down": "deteriorating", "flat": "flat"}
 
 REQUIRED_KEYS = (
-    "indicator", "region", "type", "as_of", "level", "change", "zscore",
-    "direction", "regime", "market_read",
+    "indicator",
+    "region",
+    "type",
+    "as_of",
+    "level",
+    "change",
+    "zscore",
+    "direction",
+    "regime",
+    "market_read",
 )
 OPTIONAL_KEYS = ("extreme",)
 
@@ -37,7 +45,9 @@ class Signal(TypedDict, total=False):
     extreme: bool
 
 
-def direction_label(change: float | None, band: float, labels: dict | None = None) -> str:
+def direction_label(
+    change: float | None, band: float, labels: dict | None = None
+) -> str:
     """
     Map a change onto up / down / flat labels. Moves strictly larger than
     `band` in either direction count; anything within ±band is flat.
@@ -54,7 +64,9 @@ def direction_label(change: float | None, band: float, labels: dict | None = Non
 
 
 def validate_signal(
-    signal: dict, direction_labels: dict | None = None, regime_labels: list | None = None
+    signal: dict,
+    direction_labels: dict | None = None,
+    regime_labels: list | None = None,
 ) -> list[str]:
     """Return a list of schema problems with `signal` (empty list = valid)."""
     problems = []

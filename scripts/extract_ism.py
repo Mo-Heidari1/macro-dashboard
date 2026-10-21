@@ -26,8 +26,8 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.core import paths  # noqa: E402
-from src.modules.ism_manufacturing import config as cfg  # noqa: E402
+from src.core import paths
+from src.modules.ism_manufacturing import config as cfg
 
 XLSX_PATH = paths.local_path(cfg.SOURCE_WORKBOOK)
 
@@ -48,9 +48,18 @@ SUBINDEX_SHEETS = {
 
 # Final column order, matching the Heat Map Summary sheet's shape.
 COLUMN_ORDER = [
-    "Date", "PMI", "New Orders", "Production", "Employment", "Deliveries",
-    "Inventories", "Customer Inventories", "Prices", "Order Backlog",
-    "Exports", "Imports",
+    "Date",
+    "PMI",
+    "New Orders",
+    "Production",
+    "Employment",
+    "Deliveries",
+    "Inventories",
+    "Customer Inventories",
+    "Prices",
+    "Order Backlog",
+    "Exports",
+    "Imports",
 ]
 
 
@@ -111,7 +120,9 @@ def extract_sectors(ws) -> pd.DataFrame:
                 if direction is None and score is None:
                     continue
                 records.append((category, date, industry, direction, score))
-    out = pd.DataFrame(records, columns=["Category", "Date", "Industry", "Direction", "Score"])
+    out = pd.DataFrame(
+        records, columns=["Category", "Date", "Industry", "Direction", "Score"]
+    )
     out["Category"] = out["Category"].replace(CATEGORY_LABEL_MAP)
     return out
 
@@ -144,14 +155,18 @@ def main():
     os.makedirs(paths.DATA_LOCAL, exist_ok=True)
     out_path = paths.local_path(cfg.HISTORY_FILE)
     merged.to_csv(out_path, index=False)
-    print(f"Wrote {out_path}: {len(merged)} rows, "
-          f"{merged['Date'].min().date()} to {merged['Date'].max().date()}")
+    print(
+        f"Wrote {out_path}: {len(merged)} rows, "
+        f"{merged['Date'].min().date()} to {merged['Date'].max().date()}"
+    )
 
     sectors = extract_sectors(wb["Sectors"])
     sectors_path = paths.local_path(cfg.SECTORS_FILE)
     sectors.to_csv(sectors_path, index=False)
-    print(f"Wrote {sectors_path}: {len(sectors)} rows, "
-          f"{sectors['Date'].nunique()} months, {sectors['Industry'].nunique()} industries")
+    print(
+        f"Wrote {sectors_path}: {len(sectors)} rows, "
+        f"{sectors['Date'].nunique()} months, {sectors['Industry'].nunique()} industries"
+    )
 
 
 if __name__ == "__main__":

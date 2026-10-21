@@ -17,7 +17,12 @@ import pandas as pd
 
 from src.core import paths
 from src.core.signals import direction_label
-from src.core.transforms import change_at_offset, last_complete_row, row_on_or_before, zscore_last
+from src.core.transforms import (
+    change_at_offset,
+    last_complete_row,
+    row_on_or_before,
+    zscore_last,
+)
 from src.modules.treasury_yields import config as cfg
 
 
@@ -37,14 +42,16 @@ def summary_table(df: pd.DataFrame) -> pd.DataFrame:
     latest = df.iloc[-1]
     out = []
     for tenor in cfg.TENOR_COLS:
-        out.append({
-            "Tenor": tenor,
-            "Current Yield %": latest[tenor],
-            "WoW": change_at_offset(df, tenor, cfg.OFFSET_WOW),
-            "MoM": change_at_offset(df, tenor, cfg.OFFSET_MOM),
-            "QoQ": change_at_offset(df, tenor, cfg.OFFSET_QOQ),
-            "YoY": change_at_offset(df, tenor, cfg.OFFSET_YOY),
-        })
+        out.append(
+            {
+                "Tenor": tenor,
+                "Current Yield %": latest[tenor],
+                "WoW": change_at_offset(df, tenor, cfg.OFFSET_WOW),
+                "MoM": change_at_offset(df, tenor, cfg.OFFSET_MOM),
+                "QoQ": change_at_offset(df, tenor, cfg.OFFSET_QOQ),
+                "YoY": change_at_offset(df, tenor, cfg.OFFSET_YOY),
+            }
+        )
     return pd.DataFrame(out)
 
 
@@ -64,12 +71,14 @@ def implied_inflation(df: pd.DataFrame) -> pd.DataFrame:
         out = []
         for nom, tips in cfg.BREAKEVEN_PAIRS:
             if pd.notna(row[nom]) and pd.notna(row[tips]):
-                out.append({
-                    "Maturity": nom,
-                    "Nominal": row[nom],
-                    "TIPS": row[tips],
-                    "Implied Inflation": round(row[nom] - row[tips], 4),
-                })
+                out.append(
+                    {
+                        "Maturity": nom,
+                        "Nominal": row[nom],
+                        "TIPS": row[tips],
+                        "Implied Inflation": round(row[nom] - row[tips], 4),
+                    }
+                )
         if out:
             return pd.DataFrame(out)
 
@@ -77,18 +86,26 @@ def implied_inflation(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(columns=["Maturity", "Nominal", "TIPS", "Implied Inflation"])
 
 
-def curve_on_date(df: pd.DataFrame, date=None, tenors: list[str] | None = None) -> pd.DataFrame:
+def curve_on_date(
+    df: pd.DataFrame, date=None, tenors: list[str] | None = None
+) -> pd.DataFrame:
     """
     Yield curve snapshot: yield vs. maturity (years) for a given date
     (defaults to latest). Used to feed the Curve Analysis chart.
     """
     tenors = tenors or cfg.NOMINAL_TENORS
-    row = df.iloc[-1] if date is None else df.loc[df["Date"] == pd.Timestamp(date)].iloc[0]
-    out = pd.DataFrame({
-        "Tenor": tenors,
-        "Maturity (yrs)": [cfg.MATURITY_YEARS[t] for t in tenors],
-        "Yield %": [row[t] for t in tenors],
-    }).dropna(subset=["Yield %"])
+    row = (
+        df.iloc[-1]
+        if date is None
+        else df.loc[df["Date"] == pd.Timestamp(date)].iloc[0]
+    )
+    out = pd.DataFrame(
+        {
+            "Tenor": tenors,
+            "Maturity (yrs)": [cfg.MATURITY_YEARS[t] for t in tenors],
+            "Yield %": [row[t] for t in tenors],
+        }
+    ).dropna(subset=["Yield %"])
     return out.sort_values("Maturity (yrs)")
 
 
@@ -104,7 +121,9 @@ def spread_series(df: pd.DataFrame, tenor_a: str, tenor_b: str) -> pd.DataFrame:
     return out
 
 
-def curve_regime(spread_change: float | None, level_change: float | None, band: float) -> str:
+def curve_regime(
+    spread_change: float | None, level_change: float | None, band: float
+) -> str:
     """
     Bull/bear steepener/flattener from the change in the curve spread and
     in the overall yield level. Spread moves within ±band are range-bound.
@@ -142,7 +161,7 @@ def get_signal(df: pd.DataFrame) -> dict:
         level_change = ((now[short] - prior[short]) + (now[long_] - prior[long_])) / 2
 
     spread = pair.set_index("Date")[long_] - pair.set_index("Date")[short]
-    window = spread.loc[as_of - pd.DateOffset(years=cfg.ZSCORE_YEARS):as_of]
+    window = spread.loc[as_of - pd.DateOffset(years=cfg.ZSCORE_YEARS) : as_of]
     weekly = window.resample(cfg.ZSCORE_RESAMPLE).last()
     z = zscore_last(weekly, cfg.ZSCORE_MIN_PERIODS)
 
@@ -155,7 +174,9 @@ def get_signal(df: pd.DataFrame) -> dict:
         "level": round(level, 4),
         "change": change,
         "zscore": None if z is None else round(z, 2),
-        "direction": direction_label(change, cfg.DIRECTION_BAND_PP, cfg.DIRECTION_LABELS),
+        "direction": direction_label(
+            change, cfg.DIRECTION_BAND_PP, cfg.DIRECTION_LABELS
+        ),
         "regime": regime,
         "market_read": cfg.MARKET_READ[regime],
     }

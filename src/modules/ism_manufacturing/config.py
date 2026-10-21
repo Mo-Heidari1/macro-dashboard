@@ -20,9 +20,17 @@ SAMPLE_SEED = 20260630
 # All 11 published series, headline first, in the same order as the
 # workbook's Heat Map Summary sheet.
 SUBINDEX_COLS = [
-    "PMI", "New Orders", "Production", "Employment", "Deliveries",
-    "Inventories", "Customer Inventories", "Prices", "Order Backlog",
-    "Exports", "Imports",
+    "PMI",
+    "New Orders",
+    "Production",
+    "Employment",
+    "Deliveries",
+    "Inventories",
+    "Customer Inventories",
+    "Prices",
+    "Order Backlog",
+    "Exports",
+    "Imports",
 ]
 
 # ISM's official headline PMI composite weights.
@@ -36,7 +44,12 @@ PMI_WEIGHTS = {
 
 # 50.0 separates expansion from contraction for every ISM diffusion index.
 EXPANSION_THRESHOLD = 50.0
-STATUS_LABELS = {"above": "Growth", "below": "Contraction", "at": "Neutral", "missing": "N/A"}
+STATUS_LABELS = {
+    "above": "Growth",
+    "below": "Contraction",
+    "at": "Neutral",
+    "missing": "N/A",
+}
 
 OFFSET_MOM = 1
 OFFSET_YOY = 12
@@ -47,11 +60,11 @@ REGION = "US"
 TYPE = "leading"
 SIGNAL_COL = "PMI"
 
-DIRECTION_WINDOW = 3            # 3-month average vs the prior 3-month average
-DIRECTION_BAND = 1.0            # averages within ±1.0 point of each other count as flat
+DIRECTION_WINDOW = 3  # 3-month average vs the prior 3-month average
+DIRECTION_BAND = 1.0  # averages within ±1.0 point of each other count as flat
 DIRECTION_LABELS = {"up": "improving", "down": "deteriorating", "flat": "flat"}
 
-ZSCORE_WINDOW_MONTHS = 120      # trailing 10 years
+ZSCORE_WINDOW_MONTHS = 120  # trailing 10 years
 ZSCORE_MIN_PERIODS = 36
 
 # Regime quadrant = PMI level vs 50 x momentum (sign of the 3m-vs-prior-3m
@@ -66,7 +79,7 @@ REGIMES = {
 }
 REGIME_LABELS = list(REGIMES.values())
 
-EXTREME_HIGH = 55.0             # extreme = level strictly above 55 or below 45
+EXTREME_HIGH = 55.0  # extreme = level strictly above 55 or below 45
 EXTREME_LOW = 45.0
 
 MARKET_READ = {

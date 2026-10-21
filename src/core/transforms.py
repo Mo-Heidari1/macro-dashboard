@@ -33,7 +33,9 @@ def last_complete_row(df: pd.DataFrame, cols: list[str]) -> int | None:
     return None
 
 
-def row_on_or_before(df: pd.DataFrame, date: pd.Timestamp, date_col: str = "Date") -> pd.Series | None:
+def row_on_or_before(
+    df: pd.DataFrame, date: pd.Timestamp, date_col: str = "Date"
+) -> pd.Series | None:
     """
     Last row of an ascending `df` dated on or before `date`, for
     calendar-based comparisons that don't depend on row cadence.
@@ -69,5 +71,5 @@ def window_mean_change(series: pd.Series, window: int) -> float | None:
     if len(values) < 2 * window:
         return None
     recent = values.iloc[-window:].mean()
-    prior = values.iloc[-2 * window:-window].mean()
+    prior = values.iloc[-2 * window : -window].mean()
     return float(recent - prior)
