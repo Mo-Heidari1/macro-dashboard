@@ -1,6 +1,8 @@
 streamlit
 plotly
 pandas
+numpy
 requests
 openpyxl
 matplotlib
+pytest

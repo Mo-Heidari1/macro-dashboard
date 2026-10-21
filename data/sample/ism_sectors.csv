@@ -1,0 +1,379 @@
+Category,Date,Industry,Direction,Score
+PMI,2026-04-01,"Apparel, Leather & Allied Products",Growth,10
+PMI,2026-05-01,"Apparel, Leather & Allied Products",Contraction,-16
+PMI,2026-06-01,"Apparel, Leather & Allied Products",Growth,3
+PMI,2026-04-01,Chemical Products,Growth,3
+PMI,2026-05-01,Chemical Products,Contraction,-10
+PMI,2026-06-01,Chemical Products,Contraction,-12
+PMI,2026-04-01,Computer & Electronic Products,Contraction,-9
+PMI,2026-05-01,Computer & Electronic Products,Contraction,-4
+PMI,2026-06-01,Computer & Electronic Products,Growth,11
+PMI,2026-04-01,"Electrical Equipment, Appliances & Components",Contraction,-11
+PMI,2026-05-01,"Electrical Equipment, Appliances & Components",Growth,7
+PMI,2026-06-01,"Electrical Equipment, Appliances & Components",Contraction,-2
+PMI,2026-04-01,Fabricated Metal Products,Contraction,-2
+PMI,2026-05-01,Fabricated Metal Products,Contraction,-13
+PMI,2026-06-01,Fabricated Metal Products,Growth,11
+PMI,2026-04-01,"Food, Beverage & Tobacco Products",Contraction,-11
+PMI,2026-05-01,"Food, Beverage & Tobacco Products",Contraction,-4
+PMI,2026-06-01,"Food, Beverage & Tobacco Products",Growth,17
+PMI,2026-04-01,Furniture & Related Products,Growth,1
+PMI,2026-05-01,Furniture & Related Products,Growth,13
+PMI,2026-06-01,Furniture & Related Products,Growth,16
+PMI,2026-04-01,Machinery,Contraction,-9
+PMI,2026-05-01,Machinery,Growth,9
+PMI,2026-06-01,Machinery,Contraction,-8
+PMI,2026-04-01,Miscellaneous Manufacturing,Growth,6
+PMI,2026-05-01,Miscellaneous Manufacturing,Growth,14
+PMI,2026-06-01,Miscellaneous Manufacturing,Contraction,-7
+PMI,2026-04-01,Nonmetallic Mineral Products,Contraction,-6
+PMI,2026-05-01,Nonmetallic Mineral Products,Contraction,-8
+PMI,2026-06-01,Nonmetallic Mineral Products,Growth,1
+PMI,2026-04-01,Paper Products,Growth,13
+PMI,2026-05-01,Paper Products,Growth,12
+PMI,2026-06-01,Paper Products,Growth,6
+PMI,2026-04-01,Petroleum & Coal Products,Contraction,-12
+PMI,2026-05-01,Petroleum & Coal Products,Growth,13
+PMI,2026-06-01,Petroleum & Coal Products,Growth,6
+PMI,2026-04-01,Plastics & Rubber Products,Growth,8
+PMI,2026-05-01,Plastics & Rubber Products,Growth,12
+PMI,2026-06-01,Plastics & Rubber Products,Neutral,0
+PMI,2026-04-01,Primary Metals,Contraction,-8
+PMI,2026-05-01,Primary Metals,Contraction,-12
+PMI,2026-06-01,Primary Metals,Growth,12
+PMI,2026-04-01,Printing & Related Support Activities,Contraction,-17
+PMI,2026-05-01,Printing & Related Support Activities,Contraction,-10
+PMI,2026-06-01,Printing & Related Support Activities,Growth,2
+PMI,2026-04-01,Textile Mills,Growth,7
+PMI,2026-05-01,Textile Mills,Growth,11
+PMI,2026-06-01,Textile Mills,Contraction,-3
+PMI,2026-04-01,Transportation Equipment,Contraction,-9
+PMI,2026-05-01,Transportation Equipment,Growth,11
+PMI,2026-06-01,Transportation Equipment,Growth,4
+PMI,2026-04-01,Wood Products,Contraction,-9
+PMI,2026-05-01,Wood Products,Contraction,-7
+PMI,2026-06-01,Wood Products,Contraction,-3
+New Orders,2026-04-01,"Apparel, Leather & Allied Products",Growth,5
+New Orders,2026-05-01,"Apparel, Leather & Allied Products",Growth,7
+New Orders,2026-06-01,"Apparel, Leather & Allied Products",Contraction,-7
+New Orders,2026-04-01,Chemical Products,Contraction,-11
+New Orders,2026-05-01,Chemical Products,Contraction,-9
+New Orders,2026-06-01,Chemical Products,Contraction,-12
+New Orders,2026-04-01,Computer & Electronic Products,Growth,10
+New Orders,2026-05-01,Computer & Electronic Products,Contraction,-4
+New Orders,2026-06-01,Computer & Electronic Products,Growth,9
+New Orders,2026-04-01,"Electrical Equipment, Appliances & Components",Growth,7
+New Orders,2026-05-01,"Electrical Equipment, Appliances & Components",Contraction,-15
+New Orders,2026-06-01,"Electrical Equipment, Appliances & Components",Growth,17
+New Orders,2026-04-01,Fabricated Metal Products,Contraction,-11
+New Orders,2026-05-01,Fabricated Metal Products,Contraction,-3
+New Orders,2026-06-01,Fabricated Metal Products,Growth,8
+New Orders,2026-04-01,"Food, Beverage & Tobacco Products",Contraction,-11
+New Orders,2026-05-01,"Food, Beverage & Tobacco Products",Contraction,-4
+New Orders,2026-06-01,"Food, Beverage & Tobacco Products",Growth,17
+New Orders,2026-04-01,Furniture & Related Products,Contraction,-9
+New Orders,2026-05-01,Furniture & Related Products,Contraction,-12
+New Orders,2026-06-01,Furniture & Related Products,Growth,13
+New Orders,2026-04-01,Machinery,Growth,15
+New Orders,2026-05-01,Machinery,Contraction,-9
+New Orders,2026-06-01,Machinery,Growth,1
+New Orders,2026-04-01,Miscellaneous Manufacturing,Growth,13
+New Orders,2026-05-01,Miscellaneous Manufacturing,Contraction,-2
+New Orders,2026-06-01,Miscellaneous Manufacturing,Growth,2
+New Orders,2026-04-01,Nonmetallic Mineral Products,Contraction,-4
+New Orders,2026-05-01,Nonmetallic Mineral Products,Contraction,-6
+New Orders,2026-06-01,Nonmetallic Mineral Products,Contraction,-16
+New Orders,2026-04-01,Paper Products,Growth,17
+New Orders,2026-05-01,Paper Products,Contraction,-14
+New Orders,2026-06-01,Paper Products,Neutral,0
+New Orders,2026-04-01,Petroleum & Coal Products,Neutral,0
+New Orders,2026-05-01,Petroleum & Coal Products,Neutral,0
+New Orders,2026-06-01,Petroleum & Coal Products,Growth,3
+New Orders,2026-04-01,Plastics & Rubber Products,Contraction,-12
+New Orders,2026-05-01,Plastics & Rubber Products,Growth,10
+New Orders,2026-06-01,Plastics & Rubber Products,Contraction,-7
+New Orders,2026-04-01,Primary Metals,Growth,5
+New Orders,2026-05-01,Primary Metals,Growth,13
+New Orders,2026-06-01,Primary Metals,Contraction,-3
+New Orders,2026-04-01,Printing & Related Support Activities,Growth,5
+New Orders,2026-05-01,Printing & Related Support Activities,Contraction,-17
+New Orders,2026-06-01,Printing & Related Support Activities,Contraction,-1
+New Orders,2026-04-01,Textile Mills,Contraction,-6
+New Orders,2026-05-01,Textile Mills,Growth,10
+New Orders,2026-06-01,Textile Mills,Growth,11
+New Orders,2026-04-01,Transportation Equipment,Growth,4
+New Orders,2026-05-01,Transportation Equipment,Contraction,-4
+New Orders,2026-06-01,Transportation Equipment,Contraction,-2
+New Orders,2026-04-01,Wood Products,Growth,2
+New Orders,2026-05-01,Wood Products,Growth,7
+New Orders,2026-06-01,Wood Products,Growth,12
+Production,2026-04-01,"Apparel, Leather & Allied Products",Growth,12
+Production,2026-05-01,"Apparel, Leather & Allied Products",Growth,6
+Production,2026-06-01,"Apparel, Leather & Allied Products",Contraction,-9
+Production,2026-04-01,Chemical Products,Growth,13
+Production,2026-05-01,Chemical Products,Contraction,-17
+Production,2026-06-01,Chemical Products,Contraction,-14
+Production,2026-04-01,Computer & Electronic Products,Contraction,-16
+Production,2026-05-01,Computer & Electronic Products,Contraction,-14
+Production,2026-06-01,Computer & Electronic Products,Contraction,-13
+Production,2026-04-01,"Electrical Equipment, Appliances & Components",Contraction,-10
+Production,2026-05-01,"Electrical Equipment, Appliances & Components",Growth,9
+Production,2026-06-01,"Electrical Equipment, Appliances & Components",Neutral,0
+Production,2026-04-01,Fabricated Metal Products,Growth,9
+Production,2026-05-01,Fabricated Metal Products,Contraction,-3
+Production,2026-06-01,Fabricated Metal Products,Growth,8
+Production,2026-04-01,"Food, Beverage & Tobacco Products",Growth,17
+Production,2026-05-01,"Food, Beverage & Tobacco Products",Contraction,-6
+Production,2026-06-01,"Food, Beverage & Tobacco Products",Growth,16
+Production,2026-04-01,Furniture & Related Products,Contraction,-14
+Production,2026-05-01,Furniture & Related Products,Contraction,-12
+Production,2026-06-01,Furniture & Related Products,Growth,14
+Production,2026-04-01,Machinery,Growth,5
+Production,2026-05-01,Machinery,Growth,7
+Production,2026-06-01,Machinery,Contraction,-11
+Production,2026-04-01,Miscellaneous Manufacturing,Growth,8
+Production,2026-05-01,Miscellaneous Manufacturing,Growth,8
+Production,2026-06-01,Miscellaneous Manufacturing,Neutral,0
+Production,2026-04-01,Nonmetallic Mineral Products,Growth,7
+Production,2026-05-01,Nonmetallic Mineral Products,Contraction,-17
+Production,2026-06-01,Nonmetallic Mineral Products,Contraction,-17
+Production,2026-04-01,Paper Products,Contraction,-11
+Production,2026-05-01,Paper Products,Contraction,-10
+Production,2026-06-01,Paper Products,Growth,9
+Production,2026-04-01,Petroleum & Coal Products,Growth,7
+Production,2026-05-01,Petroleum & Coal Products,Growth,12
+Production,2026-06-01,Petroleum & Coal Products,Growth,8
+Production,2026-04-01,Plastics & Rubber Products,Growth,3
+Production,2026-05-01,Plastics & Rubber Products,Growth,7
+Production,2026-06-01,Plastics & Rubber Products,Growth,8
+Production,2026-04-01,Primary Metals,Contraction,-6
+Production,2026-05-01,Primary Metals,Contraction,-1
+Production,2026-06-01,Primary Metals,Growth,10
+Production,2026-04-01,Printing & Related Support Activities,Neutral,0
+Production,2026-05-01,Printing & Related Support Activities,Growth,1
+Production,2026-06-01,Printing & Related Support Activities,Growth,17
+Production,2026-04-01,Textile Mills,Growth,10
+Production,2026-05-01,Textile Mills,Contraction,-1
+Production,2026-06-01,Textile Mills,Contraction,-6
+Production,2026-04-01,Transportation Equipment,Growth,5
+Production,2026-05-01,Transportation Equipment,Contraction,-16
+Production,2026-06-01,Transportation Equipment,Growth,2
+Production,2026-04-01,Wood Products,Growth,7
+Production,2026-05-01,Wood Products,Growth,9
+Production,2026-06-01,Wood Products,Contraction,-9
+Employment,2026-04-01,"Apparel, Leather & Allied Products",Growth,1
+Employment,2026-05-01,"Apparel, Leather & Allied Products",Contraction,-2
+Employment,2026-06-01,"Apparel, Leather & Allied Products",Contraction,-10
+Employment,2026-04-01,Chemical Products,Contraction,-11
+Employment,2026-05-01,Chemical Products,Contraction,-16
+Employment,2026-06-01,Chemical Products,Contraction,-10
+Employment,2026-04-01,Computer & Electronic Products,Growth,12
+Employment,2026-05-01,Computer & Electronic Products,Growth,13
+Employment,2026-06-01,Computer & Electronic Products,Growth,5
+Employment,2026-04-01,"Electrical Equipment, Appliances & Components",Contraction,-6
+Employment,2026-05-01,"Electrical Equipment, Appliances & Components",Growth,13
+Employment,2026-06-01,"Electrical Equipment, Appliances & Components",Growth,6
+Employment,2026-04-01,Fabricated Metal Products,Growth,4
+Employment,2026-05-01,Fabricated Metal Products,Growth,5
+Employment,2026-06-01,Fabricated Metal Products,Contraction,-9
+Employment,2026-04-01,"Food, Beverage & Tobacco Products",Contraction,-7
+Employment,2026-05-01,"Food, Beverage & Tobacco Products",Contraction,-3
+Employment,2026-06-01,"Food, Beverage & Tobacco Products",Growth,5
+Employment,2026-04-01,Furniture & Related Products,Growth,11
+Employment,2026-05-01,Furniture & Related Products,Growth,2
+Employment,2026-06-01,Furniture & Related Products,Growth,13
+Employment,2026-04-01,Machinery,Growth,6
+Employment,2026-05-01,Machinery,Contraction,-5
+Employment,2026-06-01,Machinery,Contraction,-11
+Employment,2026-04-01,Miscellaneous Manufacturing,Contraction,-8
+Employment,2026-05-01,Miscellaneous Manufacturing,Contraction,-11
+Employment,2026-06-01,Miscellaneous Manufacturing,Growth,8
+Employment,2026-04-01,Nonmetallic Mineral Products,Growth,1
+Employment,2026-05-01,Nonmetallic Mineral Products,Growth,14
+Employment,2026-06-01,Nonmetallic Mineral Products,Growth,17
+Employment,2026-04-01,Paper Products,Growth,7
+Employment,2026-05-01,Paper Products,Contraction,-3
+Employment,2026-06-01,Paper Products,Growth,13
+Employment,2026-04-01,Petroleum & Coal Products,Contraction,-2
+Employment,2026-05-01,Petroleum & Coal Products,Contraction,-13
+Employment,2026-06-01,Petroleum & Coal Products,Growth,2
+Employment,2026-04-01,Plastics & Rubber Products,Growth,17
+Employment,2026-05-01,Plastics & Rubber Products,Contraction,-13
+Employment,2026-06-01,Plastics & Rubber Products,Contraction,-9
+Employment,2026-04-01,Primary Metals,Growth,4
+Employment,2026-05-01,Primary Metals,Contraction,-8
+Employment,2026-06-01,Primary Metals,Growth,1
+Employment,2026-04-01,Printing & Related Support Activities,Contraction,-5
+Employment,2026-05-01,Printing & Related Support Activities,Growth,3
+Employment,2026-06-01,Printing & Related Support Activities,Growth,3
+Employment,2026-04-01,Textile Mills,Contraction,-14
+Employment,2026-05-01,Textile Mills,Growth,1
+Employment,2026-06-01,Textile Mills,Contraction,-6
+Employment,2026-04-01,Transportation Equipment,Contraction,-2
+Employment,2026-05-01,Transportation Equipment,Contraction,-2
+Employment,2026-06-01,Transportation Equipment,Growth,17
+Employment,2026-04-01,Wood Products,Contraction,-6
+Employment,2026-05-01,Wood Products,Contraction,-7
+Employment,2026-06-01,Wood Products,Growth,16
+Deliveries,2026-04-01,"Apparel, Leather & Allied Products",Growth,10
+Deliveries,2026-05-01,"Apparel, Leather & Allied Products",Contraction,-14
+Deliveries,2026-06-01,"Apparel, Leather & Allied Products",Contraction,-10
+Deliveries,2026-04-01,Chemical Products,Contraction,-8
+Deliveries,2026-05-01,Chemical Products,Growth,6
+Deliveries,2026-06-01,Chemical Products,Growth,1
+Deliveries,2026-04-01,Computer & Electronic Products,Growth,12
+Deliveries,2026-05-01,Computer & Electronic Products,Neutral,0
+Deliveries,2026-06-01,Computer & Electronic Products,Contraction,-11
+Deliveries,2026-04-01,"Electrical Equipment, Appliances & Components",Growth,12
+Deliveries,2026-05-01,"Electrical Equipment, Appliances & Components",Growth,15
+Deliveries,2026-06-01,"Electrical Equipment, Appliances & Components",Growth,3
+Deliveries,2026-04-01,Fabricated Metal Products,Growth,4
+Deliveries,2026-05-01,Fabricated Metal Products,Contraction,-14
+Deliveries,2026-06-01,Fabricated Metal Products,Contraction,-6
+Deliveries,2026-04-01,"Food, Beverage & Tobacco Products",Contraction,-14
+Deliveries,2026-05-01,"Food, Beverage & Tobacco Products",Contraction,-12
+Deliveries,2026-06-01,"Food, Beverage & Tobacco Products",Growth,4
+Deliveries,2026-04-01,Furniture & Related Products,Growth,1
+Deliveries,2026-05-01,Furniture & Related Products,Contraction,-17
+Deliveries,2026-06-01,Furniture & Related Products,Growth,10
+Deliveries,2026-04-01,Machinery,Contraction,-9
+Deliveries,2026-05-01,Machinery,Contraction,-13
+Deliveries,2026-06-01,Machinery,Growth,4
+Deliveries,2026-04-01,Miscellaneous Manufacturing,Contraction,-7
+Deliveries,2026-05-01,Miscellaneous Manufacturing,Contraction,-1
+Deliveries,2026-06-01,Miscellaneous Manufacturing,Contraction,-13
+Deliveries,2026-04-01,Nonmetallic Mineral Products,Contraction,-3
+Deliveries,2026-05-01,Nonmetallic Mineral Products,Growth,15
+Deliveries,2026-06-01,Nonmetallic Mineral Products,Contraction,-1
+Deliveries,2026-04-01,Paper Products,Contraction,-6
+Deliveries,2026-05-01,Paper Products,Growth,14
+Deliveries,2026-06-01,Paper Products,Contraction,-17
+Deliveries,2026-04-01,Petroleum & Coal Products,Growth,7
+Deliveries,2026-05-01,Petroleum & Coal Products,Growth,10
+Deliveries,2026-06-01,Petroleum & Coal Products,Growth,11
+Deliveries,2026-04-01,Plastics & Rubber Products,Growth,9
+Deliveries,2026-05-01,Plastics & Rubber Products,Growth,8
+Deliveries,2026-06-01,Plastics & Rubber Products,Growth,7
+Deliveries,2026-04-01,Primary Metals,Growth,15
+Deliveries,2026-05-01,Primary Metals,Contraction,-3
+Deliveries,2026-06-01,Primary Metals,Contraction,-1
+Deliveries,2026-04-01,Printing & Related Support Activities,Contraction,-6
+Deliveries,2026-05-01,Printing & Related Support Activities,Contraction,-17
+Deliveries,2026-06-01,Printing & Related Support Activities,Contraction,-8
+Deliveries,2026-04-01,Textile Mills,Neutral,0
+Deliveries,2026-05-01,Textile Mills,Contraction,-2
+Deliveries,2026-06-01,Textile Mills,Growth,3
+Deliveries,2026-04-01,Transportation Equipment,Contraction,-8
+Deliveries,2026-05-01,Transportation Equipment,Growth,5
+Deliveries,2026-06-01,Transportation Equipment,Growth,6
+Deliveries,2026-04-01,Wood Products,Contraction,-16
+Deliveries,2026-05-01,Wood Products,Growth,1
+Deliveries,2026-06-01,Wood Products,Growth,11
+Inventories,2026-04-01,"Apparel, Leather & Allied Products",Contraction,-4
+Inventories,2026-05-01,"Apparel, Leather & Allied Products",Growth,11
+Inventories,2026-06-01,"Apparel, Leather & Allied Products",Contraction,-11
+Inventories,2026-04-01,Chemical Products,Contraction,-7
+Inventories,2026-05-01,Chemical Products,Growth,17
+Inventories,2026-06-01,Chemical Products,Growth,15
+Inventories,2026-04-01,Computer & Electronic Products,Contraction,-4
+Inventories,2026-05-01,Computer & Electronic Products,Growth,12
+Inventories,2026-06-01,Computer & Electronic Products,Growth,4
+Inventories,2026-04-01,"Electrical Equipment, Appliances & Components",Growth,8
+Inventories,2026-05-01,"Electrical Equipment, Appliances & Components",Growth,3
+Inventories,2026-06-01,"Electrical Equipment, Appliances & Components",Contraction,-7
+Inventories,2026-04-01,Fabricated Metal Products,Contraction,-15
+Inventories,2026-05-01,Fabricated Metal Products,Contraction,-9
+Inventories,2026-06-01,Fabricated Metal Products,Contraction,-1
+Inventories,2026-04-01,"Food, Beverage & Tobacco Products",Contraction,-3
+Inventories,2026-05-01,"Food, Beverage & Tobacco Products",Growth,15
+Inventories,2026-06-01,"Food, Beverage & Tobacco Products",Growth,10
+Inventories,2026-04-01,Furniture & Related Products,Growth,4
+Inventories,2026-05-01,Furniture & Related Products,Growth,17
+Inventories,2026-06-01,Furniture & Related Products,Growth,8
+Inventories,2026-04-01,Machinery,Growth,4
+Inventories,2026-05-01,Machinery,Growth,11
+Inventories,2026-06-01,Machinery,Contraction,-14
+Inventories,2026-04-01,Miscellaneous Manufacturing,Growth,10
+Inventories,2026-05-01,Miscellaneous Manufacturing,Contraction,-11
+Inventories,2026-06-01,Miscellaneous Manufacturing,Contraction,-12
+Inventories,2026-04-01,Nonmetallic Mineral Products,Contraction,-15
+Inventories,2026-05-01,Nonmetallic Mineral Products,Contraction,-14
+Inventories,2026-06-01,Nonmetallic Mineral Products,Growth,14
+Inventories,2026-04-01,Paper Products,Contraction,-5
+Inventories,2026-05-01,Paper Products,Contraction,-9
+Inventories,2026-06-01,Paper Products,Contraction,-2
+Inventories,2026-04-01,Petroleum & Coal Products,Contraction,-9
+Inventories,2026-05-01,Petroleum & Coal Products,Contraction,-17
+Inventories,2026-06-01,Petroleum & Coal Products,Growth,15
+Inventories,2026-04-01,Plastics & Rubber Products,Growth,4
+Inventories,2026-05-01,Plastics & Rubber Products,Contraction,-11
+Inventories,2026-06-01,Plastics & Rubber Products,Contraction,-11
+Inventories,2026-04-01,Primary Metals,Contraction,-1
+Inventories,2026-05-01,Primary Metals,Contraction,-3
+Inventories,2026-06-01,Primary Metals,Contraction,-6
+Inventories,2026-04-01,Printing & Related Support Activities,Growth,3
+Inventories,2026-05-01,Printing & Related Support Activities,Contraction,-10
+Inventories,2026-06-01,Printing & Related Support Activities,Contraction,-14
+Inventories,2026-04-01,Textile Mills,Growth,13
+Inventories,2026-05-01,Textile Mills,Growth,12
+Inventories,2026-06-01,Textile Mills,Contraction,-11
+Inventories,2026-04-01,Transportation Equipment,Growth,16
+Inventories,2026-05-01,Transportation Equipment,Contraction,-14
+Inventories,2026-06-01,Transportation Equipment,Contraction,-17
+Inventories,2026-04-01,Wood Products,Contraction,-8
+Inventories,2026-05-01,Wood Products,Neutral,0
+Inventories,2026-06-01,Wood Products,Contraction,-9
+Customer Inventories,2026-04-01,"Apparel, Leather & Allied Products",Growth,14
+Customer Inventories,2026-05-01,"Apparel, Leather & Allied Products",Growth,2
+Customer Inventories,2026-06-01,"Apparel, Leather & Allied Products",Contraction,-15
+Customer Inventories,2026-04-01,Chemical Products,Growth,6
+Customer Inventories,2026-05-01,Chemical Products,Growth,10
+Customer Inventories,2026-06-01,Chemical Products,Growth,5
+Customer Inventories,2026-04-01,Computer & Electronic Products,Growth,14
+Customer Inventories,2026-05-01,Computer & Electronic Products,Contraction,-9
+Customer Inventories,2026-06-01,Computer & Electronic Products,Growth,1
+Customer Inventories,2026-04-01,"Electrical Equipment, Appliances & Components",Contraction,-5
+Customer Inventories,2026-05-01,"Electrical Equipment, Appliances & Components",Growth,14
+Customer Inventories,2026-06-01,"Electrical Equipment, Appliances & Components",Neutral,0
+Customer Inventories,2026-04-01,Fabricated Metal Products,Contraction,-17
+Customer Inventories,2026-05-01,Fabricated Metal Products,Growth,8
+Customer Inventories,2026-06-01,Fabricated Metal Products,Contraction,-14
+Customer Inventories,2026-04-01,"Food, Beverage & Tobacco Products",Growth,16
+Customer Inventories,2026-05-01,"Food, Beverage & Tobacco Products",Growth,17
+Customer Inventories,2026-06-01,"Food, Beverage & Tobacco Products",Growth,11
+Customer Inventories,2026-04-01,Furniture & Related Products,Contraction,-3
+Customer Inventories,2026-05-01,Furniture & Related Products,Growth,17
+Customer Inventories,2026-06-01,Furniture & Related Products,Growth,5
+Customer Inventories,2026-04-01,Machinery,Contraction,-14
+Customer Inventories,2026-05-01,Machinery,Contraction,-6
+Customer Inventories,2026-06-01,Machinery,Neutral,0
+Customer Inventories,2026-04-01,Miscellaneous Manufacturing,Contraction,-10
+Customer Inventories,2026-05-01,Miscellaneous Manufacturing,Growth,1
+Customer Inventories,2026-06-01,Miscellaneous Manufacturing,Contraction,-15
+Customer Inventories,2026-04-01,Nonmetallic Mineral Products,Neutral,0
+Customer Inventories,2026-05-01,Nonmetallic Mineral Products,Growth,15
+Customer Inventories,2026-06-01,Nonmetallic Mineral Products,Contraction,-2
+Customer Inventories,2026-04-01,Paper Products,Growth,17
+Customer Inventories,2026-05-01,Paper Products,Growth,7
+Customer Inventories,2026-06-01,Paper Products,Growth,4
+Customer Inventories,2026-04-01,Petroleum & Coal Products,Contraction,-16
+Customer Inventories,2026-05-01,Petroleum & Coal Products,Growth,16
+Customer Inventories,2026-06-01,Petroleum & Coal Products,Neutral,0
+Customer Inventories,2026-04-01,Plastics & Rubber Products,Growth,7
+Customer Inventories,2026-05-01,Plastics & Rubber Products,Growth,9
+Customer Inventories,2026-06-01,Plastics & Rubber Products,Contraction,-5
+Customer Inventories,2026-04-01,Primary Metals,Growth,3
+Customer Inventories,2026-05-01,Primary Metals,Contraction,-6
+Customer Inventories,2026-06-01,Primary Metals,Growth,5
+Customer Inventories,2026-04-01,Printing & Related Support Activities,Contraction,-3
+Customer Inventories,2026-05-01,Printing & Related Support Activities,Contraction,-7
+Customer Inventories,2026-06-01,Printing & Related Support Activities,Growth,2
+Customer Inventories,2026-04-01,Textile Mills,Neutral,0
+Customer Inventories,2026-05-01,Textile Mills,Contraction,-9
+Customer Inventories,2026-06-01,Textile Mills,Growth,15
+Customer Inventories,2026-04-01,Transportation Equipment,Contraction,-15
+Customer Inventories,2026-05-01,Transportation Equipment,Contraction,-16
+Customer Inventories,2026-06-01,Transportation Equipment,Growth,13
+Customer Inventories,2026-04-01,Wood Products,Growth,5
+Customer Inventories,2026-05-01,Wood Products,Contraction,-7
+Customer Inventories,2026-06-01,Wood Products,Contraction,-7

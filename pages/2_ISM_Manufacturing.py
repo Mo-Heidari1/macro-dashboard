@@ -3,31 +3,44 @@ ISM Manufacturing Index — headline PMI trend, sub-index heatmap, sub-index
 trend selector, sector growth/contraction table, composite sanity-check,
 and a monthly manual-update form.
 
-There is no free API for ISM's data (it's a proprietary, licensed report),
-so this page includes a form for typing in each month's published numbers
-by hand — same as the source Excel workbook required, just faster.
+ISM's data is proprietary and licensed, so the full history is kept in
+data/local/ (git-ignored). Without it the page runs on the committed sample:
+the real headline PMI for recent months plus illustrative (synthetic)
+sub-indices and sector rankings, all labelled as such.
 """
 
 import os
 
 import streamlit as st
-import plotly.graph_objects as go
 import pandas as pd
 
-from ism_calculations import (
+from src.core import charts, paths
+from src.modules.ism_manufacturing import config as cfg
+from src.modules.ism_manufacturing.calculations import (
     load_ism_history, load_ism_sectors, summary_table, heatmap_data,
-    classify, sector_rankings, recompute_pmi_from_subindices, SUBINDEX_COLS,
+    classify, sector_rankings, recompute_pmi_from_subindices,
 )
+
+SUBINDEX_COLS = cfg.SUBINDEX_COLS
+ILLUSTRATIVE = "Illustrative data: synthetic values, not ISM figures."
 
 st.set_page_config(page_title="ISM Manufacturing — Macro Dashboard", layout="wide")
 st.title("ISM Manufacturing Index")
 
 df = load_ism_history()
 sectors = load_ism_sectors()
+_, history_is_sample = paths.resolve_data_file(cfg.HISTORY_FILE)
+_, sectors_is_sample = paths.resolve_data_file(cfg.SECTORS_FILE)
 latest_date = df["Date"].max()
 latest_pmi = df.iloc[-1]["PMI"]
 st.caption(f"Data through {latest_date.strftime('%B %Y')} · monthly · "
            f"{len(df):,} observations since {df['Date'].min().strftime('%Y')}")
+if history_is_sample:
+    st.info(
+        f"**Sample data.** The headline PMI is ISM's published figure for the last "
+        f"{cfg.SAMPLE_MONTHS} months. Sub-indices and sector rankings are illustrative data "
+        "(synthetic values, not ISM figures). The full licensed history is kept locally only."
+    )
 
 col1, col2 = st.columns([1, 3])
 col1.metric("Headline PMI", f"{latest_pmi:.1f}", classify(latest_pmi))
@@ -39,6 +52,8 @@ tab_overview, tab_heatmap, tab_sectors, tab_composite, tab_update = st.tabs(
 # ---------- Overview tab ----------
 with tab_overview:
     st.subheader("Current sub-index values and changes")
+    if history_is_sample:
+        st.caption("Illustrative data for every row except the headline PMI.")
     s = summary_table(df)
 
     def highlight_status(val):
@@ -53,33 +68,33 @@ with tab_overview:
 
     st.subheader("History — pick a sub-index")
     sub_pick = st.selectbox("Sub-Index", SUBINDEX_COLS, index=0)
+    if history_is_sample and sub_pick not in cfg.SAMPLE_REAL_COLUMNS:
+        st.caption(ILLUSTRATIVE)
     hist = df[["Date", sub_pick]].dropna()
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=hist["Date"], y=hist[sub_pick], mode="lines", name=sub_pick))
-    fig.add_hline(y=50, line_dash="dash", line_color="gray", annotation_text="50 = expansion/contraction line")
-    fig.update_layout(height=400, yaxis_title=sub_pick, margin=dict(t=20))
+    fig = charts.line_chart(hist["Date"], hist[sub_pick], sub_pick, height=400,
+                            yaxis_title=sub_pick, hline=cfg.EXPANSION_THRESHOLD,
+                            hline_annotation="50 = expansion/contraction line")
     st.plotly_chart(fig, use_container_width=True)
 
 # ---------- Sub-Index Heatmap tab ----------
 with tab_heatmap:
     st.subheader("Sub-index heatmap")
+    if history_is_sample:
+        st.caption("Illustrative data for every row except the headline PMI.")
     n_months = st.slider("Months to show", min_value=12, max_value=min(120, len(df)), value=36, step=12)
     hm = heatmap_data(df, n_months)
-    fig = go.Figure(data=go.Heatmap(
-        z=hm.T.values,
-        x=hm.index.strftime("%Y-%m"),
-        y=hm.columns,
-        colorscale="RdYlGn",
-        zmid=50,
-        colorbar=dict(title="Index"),
-        hovertemplate="%{y} — %{x}: %{z:.1f}<extra></extra>",
-    ))
-    fig.update_layout(height=500, margin=dict(t=20))
+    fig = charts.heatmap_chart(
+        hm.T.values, hm.index.strftime("%Y-%m"), hm.columns,
+        zmid=cfg.EXPANSION_THRESHOLD, colorbar_title="Index",
+        hovertemplate="%{y} — %{x}: %{z:.1f}<extra></extra>", height=500,
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 # ---------- Sector Breakdown tab ----------
 with tab_sectors:
     st.subheader("Industry growth/contraction by category")
+    if sectors_is_sample:
+        st.caption(ILLUSTRATIVE)
     available_months = sorted(sectors["Date"].unique(), reverse=True)
     available_categories = sorted(sectors["Category"].unique())
     col_a, col_b = st.columns(2)
@@ -107,12 +122,18 @@ with tab_composite:
         "exactly — ISM applies seasonal adjustment on top of this simple weighted sum — "
         "but it should track closely, which is the point: it shows how the index is built."
     )
+    if history_is_sample:
+        st.caption("Illustrative data: the recomputed line uses synthetic sub-indices; "
+                   "only the published PMI line is real.")
     recomp = recompute_pmi_from_subindices(df).tail(24)
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=recomp["Date"], y=recomp["PMI"], mode="lines", name="Published PMI"))
-    fig.add_trace(go.Scatter(x=recomp["Date"], y=recomp["Recomputed PMI"], mode="lines",
-                              name="Recomputed PMI", line=dict(dash="dot")))
-    fig.update_layout(height=400, yaxis_title="Index", margin=dict(t=20))
+    fig = charts.multi_line_chart(
+        [
+            {"x": recomp["Date"], "y": recomp["PMI"], "name": "Published PMI"},
+            {"x": recomp["Date"], "y": recomp["Recomputed PMI"], "name": "Recomputed PMI",
+             "dash": "dot"},
+        ],
+        height=400, yaxis_title="Index",
+    )
     st.plotly_chart(fig, use_container_width=True)
     st.dataframe(
         recomp.style.format({"PMI": "{:.1f}", "Recomputed PMI": "{:.1f}", "Diff": "{:+.1f}"}),
@@ -128,22 +149,26 @@ with tab_update:
         "you would in the source Excel workbook. This just makes it a form instead of "
         "a multi-sheet edit."
     )
-    with st.form("ism_update_form"):
-        next_month = (latest_date + pd.DateOffset(months=1)).replace(day=1)
-        report_date = st.date_input("Report month", value=next_month)
-        cols = st.columns(3)
-        inputs = {}
-        for i, sub in enumerate(SUBINDEX_COLS):
-            inputs[sub] = cols[i % 3].number_input(sub, min_value=0.0, max_value=100.0, step=0.1, value=None,
-                                                     format="%.1f")
-        submitted = st.form_submit_button("Save this month")
+    if history_is_sample:
+        st.info("Manual entry needs the full local dataset (data/local/), so it is "
+                "turned off while the page runs on sample data.")
+    else:
+        with st.form("ism_update_form"):
+            next_month = (latest_date + pd.DateOffset(months=1)).replace(day=1)
+            report_date = st.date_input("Report month", value=next_month)
+            cols = st.columns(3)
+            inputs = {}
+            for i, sub in enumerate(SUBINDEX_COLS):
+                inputs[sub] = cols[i % 3].number_input(sub, min_value=0.0, max_value=100.0, step=0.1,
+                                                         value=None, format="%.1f")
+            submitted = st.form_submit_button("Save this month")
 
-    if submitted:
-        date = pd.Timestamp(report_date).replace(day=1)
-        new_row = {"Date": date, **inputs}
-        history = df[df["Date"] != date]
-        history = pd.concat([history, pd.DataFrame([new_row])], ignore_index=True)
-        history = history.sort_values("Date").reset_index(drop=True)
-        csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "ism_history.csv")
-        history.to_csv(csv_path, index=False)
-        st.success(f"Saved {date.strftime('%B %Y')}. Refresh the page to see it reflected everywhere.")
+        if submitted:
+            date = pd.Timestamp(report_date).replace(day=1)
+            new_row = {"Date": date, **inputs}
+            history = df[df["Date"] != date]
+            history = pd.concat([history, pd.DataFrame([new_row])], ignore_index=True)
+            history = history.sort_values("Date").reset_index(drop=True)
+            os.makedirs(paths.DATA_LOCAL, exist_ok=True)
+            history.to_csv(paths.local_path(cfg.HISTORY_FILE), index=False)
+            st.success(f"Saved {date.strftime('%B %Y')}. Refresh the page to see it reflected everywhere.")

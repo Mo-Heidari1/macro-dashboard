@@ -4,10 +4,11 @@ One-time extraction: ISM_Manufacturing_Index_Updated.xlsx -> CSV files.
 Run once (or whenever the source workbook is replaced) with:
     python scripts/extract_ism.py
 
-Produces, in the project root:
+Reads data/local/ISM_Manufacturing_Index_Updated.xlsx and produces, in
+data/local/ (git-ignored, the data is licensed):
 - ism_history.csv     wide format, one row per month, one column per
                        sub-index (mirrors the 'Heat Map Summary' sheet shape).
-                       This is the file ism_calculations.load_ism_history()
+                       This is the file load_ism_history()
                        reads.
 - ism_sectors.csv      long format: Date, Industry, Direction, Score
                        (melted from the wide 'Sectors' sheet).
@@ -18,11 +19,17 @@ non-null rather than trusting max_row.
 """
 
 import os
+import sys
+
 import openpyxl
 import pandas as pd
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-XLSX_PATH = os.path.join(ROOT, "ISM_Manufacturing_Index_Updated.xlsx")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.core import paths  # noqa: E402
+from src.modules.ism_manufacturing import config as cfg  # noqa: E402
+
+XLSX_PATH = paths.local_path(cfg.SOURCE_WORKBOOK)
 
 # sheet name -> (value column name in that sheet, output column name)
 SUBINDEX_SHEETS = {
@@ -134,13 +141,14 @@ def main():
     merged = merged.sort_values("Date").reset_index(drop=True)
     merged = merged[COLUMN_ORDER]
 
-    out_path = os.path.join(ROOT, "ism_history.csv")
+    os.makedirs(paths.DATA_LOCAL, exist_ok=True)
+    out_path = paths.local_path(cfg.HISTORY_FILE)
     merged.to_csv(out_path, index=False)
     print(f"Wrote {out_path}: {len(merged)} rows, "
           f"{merged['Date'].min().date()} to {merged['Date'].max().date()}")
 
     sectors = extract_sectors(wb["Sectors"])
-    sectors_path = os.path.join(ROOT, "ism_sectors.csv")
+    sectors_path = paths.local_path(cfg.SECTORS_FILE)
     sectors.to_csv(sectors_path, index=False)
     print(f"Wrote {sectors_path}: {len(sectors)} rows, "
           f"{sectors['Date'].nunique()} months, {sectors['Industry'].nunique()} industries")

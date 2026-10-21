@@ -14,11 +14,11 @@ It is a public portfolio project for trading and research job applications. That
 
 ## Environment
 
-- Windows + Anaconda. Run with `python -m streamlit run Home.py`.
+- Windows + Anaconda base environment (Python 3.12). Run with `python -m streamlit run Home.py` from that environment. Run tests with `python -m pytest`.
 - Deployed on Streamlit Community Cloud from the `main` branch. Code must therefore run on Linux too:
   - no Windows-only file paths
   - every dependency listed in `requirements.txt`
-- Stack: Python 3.11, pandas, numpy, plotly, streamlit, requests, pytest.
+- Stack: Python 3.12, pandas, numpy, plotly, streamlit, requests, pytest.
 - Before adding any new dependency, explain why the existing stack can't do the job.
 
 ## Repository structure
@@ -54,7 +54,7 @@ tests/                       # pytest, one test file per module
    - UI code lives only in `pages/` and `Home.py`.
 4. **Validation.** Before any new calculation is trusted, validate it number by number against the source Excel cached values (or the official release). Report the comparison table. Never assume.
 5. **Data gaps.** Never assume the latest row is complete. Walk backward to the last fully populated row, and show its date ("as of") on the page.
-6. **Caching.** Wrap all network fetches in `@st.cache_data(ttl=...)`: daily data 6h, weekly 24h, monthly 24h. If an API call fails, fall back to the last saved CSV and show a visible warning. The app must never crash because a source is down.
+6. **Caching.** Cache every network fetch with `st.cache_data(ttl=...)`: daily data 6h, weekly 24h, monthly 24h. Because of rule 3, the fetchers in `src/core/loaders.py` stay Streamlit-free; apply the cache wrapper where they are called, in `pages/` or `Home.py`. If an API call fails, fall back to the last saved CSV and show a visible warning. The app must never crash because a source is down.
 7. **Secrets.** API keys come from `st.secrets` (with `os.environ` as a fallback for scripts).
    - Never print, log or commit keys.
    - `.streamlit/secrets.toml` must stay in `.gitignore`.
@@ -76,11 +76,14 @@ Each module's `calculations.py` exposes `get_signal(df) -> dict` with this schem
   "level": 49.1,
   "change": +0.8,                         # vs prior period
   "zscore": -0.4,                         # vs trailing 10y unless noted in config
-  "direction": "improving",               # improving | deteriorating | flat
+  "direction": "improving",               # improving | deteriorating | flat, unless config.py sets DIRECTION_LABELS
   "regime": "contraction",                # module-specific label, defined in config.py
   "market_read": "one sentence on the implication for rates/equities/USD",
+  "extreme": False,                       # optional: level beyond the module's extreme thresholds
 }
 ```
+
+The schema, allowed values and `validate_signal()` live in `src/core/signals.py`. A module may override the direction labels with `DIRECTION_LABELS = {"up": ..., "down": ..., "flat": ...}` in its `config.py` (e.g. steepening / flattening / flat for the yield curve).
 
 Thresholds and regime labels live in each module's `config.py`. Never hardcode them in calculations.
 
@@ -165,7 +168,7 @@ Identify CFTC contracts by brute-force exact matching on open interest, longs an
 
 ## Don'ts
 
-- Don't commit anything in `data/local/`, secrets, notebooks with outputs, or files over 5 MB.
-- Don't put trading-strategy logic or signals from private strategies in this repo.
-- Don't reproduce text from paid course material in page copy. All explanations should be written fresh.
-- Don't silently change a threshold or formula. Flag every change in the summary.
+1. Don't commit anything in `data/local/`, secrets, notebooks with outputs, or files over 5 MB.
+2. Don't put trading-strategy logic or signals from private strategies in this repo.
+3. Don't reproduce text from paid course material in page copy. All explanations should be written fresh.
+4. Don't silently change a threshold or formula. Flag every change in the summary.
