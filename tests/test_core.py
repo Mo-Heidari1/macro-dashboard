@@ -83,7 +83,8 @@ def test_change_over_mixed_cadence():
     df = pd.DataFrame({"Date": dates, "x": [1, 2, 3, 4, 5, 6, 7, 8.0]})
     assert change_over(df, "x", pd.Timedelta(days=7)) == 8.0 - 3.0  # vs 2026-01-02
     df.loc[7, "x"] = np.nan
-    assert change_over(df, "x", pd.Timedelta(days=7)) is None  # latest missing
+    # latest row missing: walk back to 2026-01-08 (7) and compare with 2025-12-28 (2)
+    assert change_over(df, "x", pd.Timedelta(days=7)) == 5.0
 
 
 def test_change_over_months():

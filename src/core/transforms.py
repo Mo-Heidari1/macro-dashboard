@@ -13,25 +13,34 @@ def change_over(
     date_col: str = "Date",
 ) -> float | None:
     """
-    Latest value of `col` minus the last value dated on or before
-    (latest date - lookback), rounded to 4 dp. Calendar-based, so it means
-    the same thing on weekly, daily or mixed-cadence data. The comparison
-    value must be less than one further lookback older than that (so a
-    missing month can't turn MoM into a 12-month change). None if the
-    latest value is missing or no comparison value qualifies.
+    Last populated value of `col` (walking back past incomplete rows) minus
+    the last value dated on or before (its date - lookback), rounded to 4 dp.
+    Calendar-based, so it means the same thing on weekly, daily or
+    mixed-cadence data. The comparison value must be less than one further
+    lookback older than that (so a missing month can't turn MoM into a
+    12-month change). None if `col` has no values or no comparison value
+    qualifies.
     """
-    if df.empty:
+    last = last_valid(df, col, date_col)
+    if last is None:
         return None
-    latest = df.iloc[-1]
-    cur = latest[col]
-    if pd.isna(cur):
-        return None
-    target = latest[date_col] - lookback
+    as_of, cur = last
+    target = as_of - lookback
     window = (df[date_col] <= target) & (df[date_col] > target - lookback)
     earlier = df.loc[window, col].dropna()
     if earlier.empty:
         return None
     return round(cur - earlier.iloc[-1], 4)
+
+
+def last_valid(
+    df: pd.DataFrame, col: str, date_col: str = "Date"
+) -> tuple[pd.Timestamp, float] | None:
+    """(date, value) of the most recent populated value of `col`, or None."""
+    valid = df.loc[df[col].notna(), [date_col, col]]
+    if valid.empty:
+        return None
+    return valid[date_col].iloc[-1], float(valid[col].iloc[-1])
 
 
 def last_complete_row(df: pd.DataFrame, cols: list[str]) -> int | None:

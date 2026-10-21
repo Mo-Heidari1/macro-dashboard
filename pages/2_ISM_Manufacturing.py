@@ -15,6 +15,7 @@ import pandas as pd
 import streamlit as st
 
 from src.core import charts, paths
+from src.core.transforms import last_complete_row, last_valid
 from src.modules.ism_manufacturing import config as cfg
 from src.modules.ism_manufacturing.calculations import (
     classify,
@@ -37,11 +38,14 @@ sectors = load_ism_sectors()
 _, history_is_sample = paths.resolve_data_file(cfg.HISTORY_FILE)
 _, sectors_is_sample = paths.resolve_data_file(cfg.SECTORS_FILE)
 latest_date = df["Date"].max()
-latest_pmi = df.iloc[-1]["PMI"]
+pmi_date, latest_pmi = last_valid(df, "PMI")
+complete_i = last_complete_row(df, SUBINDEX_COLS)
+complete_date = df["Date"].iloc[complete_i] if complete_i is not None else pmi_date
 st.caption(
-    f"Data through {latest_date.strftime('%B %Y')} · monthly · "
-    f"{len(df):,} observations since {df['Date'].min().strftime('%Y')}"
+    f"As of {complete_date:%B %Y} (latest month with all {len(SUBINDEX_COLS)} series) · "
+    f"monthly · {len(df):,} observations since {df['Date'].min():%Y}"
 )
+st.caption(f"Source: {cfg.SOURCE}")
 if history_is_sample:
     st.info(
         f"**Sample data.** The headline PMI is ISM's published figure for the last "
@@ -51,6 +55,7 @@ if history_is_sample:
 
 col1, col2 = st.columns([1, 3])
 col1.metric("Headline PMI", f"{latest_pmi:.1f}", classify(latest_pmi))
+col1.caption(f"As of {pmi_date:%B %Y}")
 
 tab_overview, tab_heatmap, tab_sectors, tab_composite, tab_update = st.tabs(
     [
@@ -127,6 +132,9 @@ with tab_sectors:
     if sectors_is_sample:
         st.caption(ILLUSTRATIVE)
     available_months = sorted(sectors["Date"].unique(), reverse=True)
+    st.caption(
+        f"As of {pd.Timestamp(available_months[0]):%B %Y} (latest month with sector data)"
+    )
     available_categories = sorted(sectors["Category"].unique())
     col_a, col_b = st.columns(2)
     month_pick = col_a.selectbox(

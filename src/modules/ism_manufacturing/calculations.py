@@ -25,6 +25,7 @@ from src.core.signals import direction_label
 from src.core.transforms import (
     change_over,
     last_complete_row,
+    last_valid,
     window_mean_change,
     zscore_last,
 )
@@ -58,14 +59,18 @@ def classify(value) -> str:
 
 
 def summary_table(df: pd.DataFrame) -> pd.DataFrame:
-    """Current value, classification, and MoM/YoY change for every sub-index."""
-    latest = df.iloc[-1]
+    """
+    Current value, classification, and MoM/YoY change for every sub-index,
+    each from its own last published month (dated in "As of").
+    """
     out = []
     for col in cfg.SUBINDEX_COLS:
-        cur = latest[col]
+        last = last_valid(df, col)
+        cur = last[1] if last else None
         out.append(
             {
                 "Sub-Index": col,
+                "As of": last[0].strftime("%Y-%m-%d") if last else None,
                 "Current": cur,
                 "Status": classify(cur),
                 **{

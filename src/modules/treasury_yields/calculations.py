@@ -20,6 +20,7 @@ from src.core.signals import direction_label
 from src.core.transforms import (
     change_over,
     last_complete_row,
+    last_valid,
     row_on_or_before,
     zscore_last,
 )
@@ -38,15 +39,18 @@ def summary_table(df: pd.DataFrame) -> pd.DataFrame:
     """
     Replicates the 'Summary' sheet: current yield and WoW/MoM/QoQ/YoY
     change (in percentage points) for every tenor, each change measured
-    over SUMMARY_LOOKBACK_DAYS calendar days.
+    over SUMMARY_LOOKBACK_DAYS calendar days. Each tenor uses its own last
+    published value, dated in the "As of" column (series post on different
+    days, e.g. Fed Funds lags the Treasury curve).
     """
-    latest = df.iloc[-1]
     out = []
     for tenor in cfg.TENOR_COLS:
+        last = last_valid(df, tenor)
         out.append(
             {
                 "Tenor": tenor,
-                "Current Yield %": latest[tenor],
+                "As of": last[0].strftime("%Y-%m-%d") if last else None,
+                "Current Yield %": last[1] if last else None,
                 **{
                     label: change_over(df, tenor, pd.Timedelta(days=days))
                     for label, days in cfg.SUMMARY_LOOKBACK_DAYS.items()
@@ -65,7 +69,7 @@ def implied_inflation(df: pd.DataFrame) -> pd.DataFrame:
     yields, so the very latest row may have nominal but not-yet-published
     TIPS values. To avoid returning an empty table, this walks backward
     from the latest row until it finds one with at least one complete
-    nominal/TIPS pair.
+    nominal/TIPS pair. The row's date is returned in the "As of" column.
     """
     for i in range(len(df) - 1, -1, -1):
         row = df.iloc[i]
@@ -74,6 +78,7 @@ def implied_inflation(df: pd.DataFrame) -> pd.DataFrame:
             if pd.notna(row[nom]) and pd.notna(row[tips]):
                 out.append(
                     {
+                        "As of": row["Date"].strftime("%Y-%m-%d"),
                         "Maturity": nom,
                         "Nominal": row[nom],
                         "TIPS": row[tips],
@@ -84,7 +89,9 @@ def implied_inflation(df: pd.DataFrame) -> pd.DataFrame:
             return pd.DataFrame(out)
 
     # No row anywhere has a complete nominal/TIPS pair
-    return pd.DataFrame(columns=["Maturity", "Nominal", "TIPS", "Implied Inflation"])
+    return pd.DataFrame(
+        columns=["As of", "Maturity", "Nominal", "TIPS", "Implied Inflation"]
+    )
 
 
 def curve_on_date(
@@ -92,14 +99,15 @@ def curve_on_date(
 ) -> pd.DataFrame:
     """
     Yield curve snapshot: yield vs. maturity (years) for a given date
-    (defaults to latest). Used to feed the Curve Analysis chart.
+    (defaults to the last row with every requested tenor populated). Used
+    to feed the Curve Analysis chart.
     """
     tenors = tenors or cfg.NOMINAL_TENORS
-    row = (
-        df.iloc[-1]
-        if date is None
-        else df.loc[df["Date"] == pd.Timestamp(date)].iloc[0]
-    )
+    if date is None:
+        i = last_complete_row(df, tenors)
+        row = df.iloc[-1 if i is None else i]
+    else:
+        row = df.loc[df["Date"] == pd.Timestamp(date)].iloc[0]
     out = pd.DataFrame(
         {
             "Tenor": tenors,
@@ -232,11 +240,17 @@ def backfill_columns(
     return out, changes
 
 
-def snapshot_dates(df: pd.DataFrame, lookback_days: list[int]) -> list[pd.Timestamp]:
+def snapshot_dates(
+    df: pd.DataFrame, lookback_days: list[int], cols: list[str] | None = None
+) -> list[pd.Timestamp]:
     """
-    For each lookback, the last history date on or before (latest date -
-    lookback days). Used for the default curve comparisons.
+    For each lookback, the last date on or before (as-of date - lookback
+    days) among rows with every column in `cols` populated (default: the
+    nominal curve). Used for the default curve comparisons.
     """
+    df = df.dropna(subset=cols or cfg.NOMINAL_TENORS)
+    if df.empty:
+        return []
     latest = df["Date"].max()
     out = []
     for days in lookback_days:

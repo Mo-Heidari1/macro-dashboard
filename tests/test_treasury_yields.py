@@ -223,7 +223,53 @@ def test_summary_changes_on_daily_rows_use_calendar_days():
 def test_snapshot_dates_by_calendar():
     dates = pd.bdate_range("2025-01-01", "2026-03-31")
     df = _frame(dates, **{"10yr": np.ones(len(dates))})
-    got = snapshot_dates(df, [0, 91, 364])
+    got = snapshot_dates(df, [0, 91, 364], cols=["10yr"])
     assert got[0] == dates[-1]
     assert got[1] == dates[dates <= dates[-1] - pd.Timedelta(days=91)][-1]
     assert got[2] == dates[dates <= dates[-1] - pd.Timedelta(days=364)][-1]
+
+
+# ---------- last complete row / as-of ----------
+
+
+def test_summary_uses_each_tenors_last_value_and_reports_as_of():
+    df = _frame(
+        ["2026-09-04", "2026-09-07", "2026-09-11", "2026-09-14"],
+        **{
+            "10yr": [4.78, np.nan, 4.96, 4.97],
+            "Fed Funds": [3.63, np.nan, 3.63, np.nan],
+        },
+    )
+    s = summary_table(df).set_index("Tenor")
+    assert (s.loc["10yr", "As of"], s.loc["10yr", "Current Yield %"]) == (
+        "2026-09-14",
+        4.97,
+    )
+    assert (s.loc["Fed Funds", "As of"], s.loc["Fed Funds", "Current Yield %"]) == (
+        "2026-09-11",
+        3.63,
+    )
+    assert s.loc["10yr", "WoW"] == pytest.approx(4.97 - 4.78)  # skips the holiday row
+    assert s.loc["5yr TIPS", "As of"] is None
+
+
+def test_curve_defaults_to_last_complete_row():
+    df = _frame(
+        ["2026-09-11", "2026-09-14"], **{t: [4.0, 4.1] for t in cfg.NOMINAL_TENORS}
+    )
+    df.loc[1, "30yr"] = np.nan
+    assert curve_on_date(df)["Yield %"].tolist() == [4.0] * len(cfg.NOMINAL_TENORS)
+
+
+def test_snapshot_dates_skip_incomplete_curves():
+    dates = pd.bdate_range("2026-01-01", "2026-03-31")
+    df = _frame(dates, **{t: np.ones(len(dates)) for t in cfg.NOMINAL_TENORS})
+    df.loc[len(df) - 1, "1mo"] = np.nan
+    assert snapshot_dates(df, [0])[0] == dates[-2]
+
+
+def test_implied_inflation_reports_as_of(history):
+    infl = implied_inflation(history)
+    assert infl["As of"].nunique() == 1
+    row = history.loc[history["Date"] == pd.Timestamp(infl["As of"].iloc[0])].iloc[0]
+    assert pd.notna(row["10yr TIPS"])

@@ -173,3 +173,12 @@ def test_summary_yoy_uses_calendar_months_across_a_gap():
     row = summary_table(df).set_index("Sub-Index").loc["PMI"]
     assert row["YoY"] == pytest.approx(1.0)  # vs June 2025, not the row before
     assert pd.isna(row["MoM"])  # May 2026 missing: no value within the window
+
+
+def test_summary_reports_each_series_last_month():
+    df = _pmi_frame([50.0, 51.0, np.nan])
+    df["Prices"] = [60.0, 61.0, 62.0]
+    s = summary_table(df).set_index("Sub-Index")
+    assert (s.loc["PMI", "As of"], s.loc["PMI", "Current"]) == ("2024-02-01", 51.0)
+    assert s.loc["Prices", "As of"] == "2024-03-01"
+    assert s.loc["New Orders", "Status"] == "N/A"
