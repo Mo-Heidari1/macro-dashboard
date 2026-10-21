@@ -83,15 +83,11 @@ def zscore_last(series: pd.Series, min_periods: int = 2) -> float | None:
     return float((values.iloc[-1] - values.mean()) / std)
 
 
-def window_mean_change(series: pd.Series, window: int) -> float | None:
+def rolling_mean_change(series: pd.Series, window: int) -> pd.Series:
     """
-    Mean of the last `window` non-missing values minus the mean of the
-    `window` values before them (e.g. 3m average vs prior 3m average).
-    None if fewer than 2 * window values.
+    At each point, the mean of the last `window` values minus the mean of
+    the `window` values before them (e.g. 3m average vs prior 3m average).
+    NaN until 2 * window values are available. Pass a gap-free series.
     """
-    values = series.dropna()
-    if len(values) < 2 * window:
-        return None
-    recent = values.iloc[-window:].mean()
-    prior = values.iloc[-2 * window : -window].mean()
-    return float(recent - prior)
+    avg = series.rolling(window).mean()
+    return avg - avg.shift(window)

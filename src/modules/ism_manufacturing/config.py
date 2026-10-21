@@ -67,9 +67,12 @@ DIRECTION_LABELS = {"up": "improving", "down": "deteriorating", "flat": "flat"}
 ZSCORE_WINDOW_MONTHS = 120  # trailing 10 years
 ZSCORE_MIN_PERIODS = 36
 
-# Regime quadrant = PMI level vs 50 x momentum (sign of the 3m-vs-prior-3m
-# change; the ±1.0 band applies only to the direction label). A level of
-# exactly 50 and a change of exactly 0 count as "above" and "rising".
+# Regime quadrant = PMI level vs 50 x momentum trend, with hysteresis:
+# - momentum outside ±DIRECTION_BAND: trend = sign of the 3m-vs-prior-3m change
+# - momentum inside the band ("momentum stable"): the prior month's trend
+#   carries forward, so the regime only changes if the level crosses 50
+# - before any month has left the band, a stable month takes the sign of its
+#   change (0 counts as rising). A level of exactly 50 counts as "above".
 REGIME_LEVEL = 50.0
 REGIMES = {
     ("above", "rising"): "Expansion",
@@ -98,5 +101,26 @@ MARKET_READ = {
     "Recovery": (
         "Factory activity is still contracting but momentum has turned up, an early-cycle signal "
         "that tends to favour cyclicals and a steeper yield curve."
+    ),
+}
+
+# Used instead of MARKET_READ when momentum is inside the band.
+MARKET_READ_STABLE = {
+    "Expansion": (
+        "Momentum stable: factory activity is above 50 and the 3-month average has moved less "
+        "than a point, so the expansion read holds without adding a fresh signal for cyclicals "
+        "or yields."
+    ),
+    "Slowdown": (
+        "Momentum stable: factory activity is above 50 and the last decisive move was down, so "
+        "the late-cycle read holds until momentum turns."
+    ),
+    "Contraction": (
+        "Momentum stable: factory activity is below 50 and the last decisive move was down, so "
+        "the defensive read for duration and cyclicals holds until momentum turns."
+    ),
+    "Recovery": (
+        "Momentum stable: factory activity is below 50 and the last decisive move was up, so "
+        "the early-cycle read holds while momentum stays positive."
     ),
 }

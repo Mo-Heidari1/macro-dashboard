@@ -13,8 +13,8 @@ from src.core.signals import DEFAULT_DIRECTION_LABELS, direction_label, validate
 from src.core.transforms import (
     change_over,
     last_complete_row,
+    rolling_mean_change,
     row_on_or_before,
-    window_mean_change,
     zscore_last,
 )
 
@@ -126,10 +126,12 @@ def test_zscore_last_known_value():
     assert zscore_last(pd.Series([2.0, 2.0, 2.0])) is None  # zero variance
 
 
-def test_window_mean_change():
-    s = pd.Series([50, 51, 52, 54, 55, 56])  # (55) - (51) = 4
-    assert window_mean_change(s, 3) == pytest.approx(4.0)
-    assert window_mean_change(s.iloc[:5], 3) is None
+def test_rolling_mean_change():
+    s = pd.Series([50, 51, 52, 54, 55, 56, 57.0])
+    out = rolling_mean_change(s, 3)
+    assert out.iloc[:5].isna().all()
+    assert out.iloc[5] == pytest.approx(55 - 51)  # (54,55,56) vs (50,51,52)
+    assert out.iloc[6] == pytest.approx(56 - 52.333333)
 
 
 # ---------- signals ----------

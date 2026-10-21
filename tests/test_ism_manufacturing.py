@@ -16,6 +16,7 @@ from src.modules.ism_manufacturing.calculations import (
     load_ism_sectors,
     pmi_regime,
     recompute_pmi_from_subindices,
+    regime_history,
     sector_rankings,
     summary_table,
 )
@@ -149,8 +150,37 @@ def test_signal_extreme_flag(level, extreme):
 
 
 def test_pmi_regime_edges():
-    assert pmi_regime(50.0, -0.5) == "Slowdown"  # exactly 50 counts as above
-    assert pmi_regime(49.9, 0.0) == "Recovery"  # zero momentum counts as rising
+    assert pmi_regime(50.0, "falling") == "Slowdown"  # exactly 50 counts as above
+    assert pmi_regime(49.9, "rising") == "Recovery"
+    # first stable month with zero momentum and no prior trend counts as rising
+    assert get_signal(_pmi_frame([49.9] * 6))["regime"] == "Recovery"
+
+
+def test_stable_momentum_keeps_prior_regime():
+    # decisive rise (Expansion), then the 3m average stalls and dips by 0.9
+    values = [50, 50, 50, 54, 55, 56, 55.5, 55.0, 54.6, 54.2]
+    hist = regime_history(_pmi_frame(values))
+    assert hist["regime"].iloc[5:8].tolist() == ["Expansion"] * 3
+    assert not hist["stable"].iloc[7]
+    last = hist.iloc[-1]
+    assert last["momentum"] == pytest.approx(-0.9) and bool(last["stable"])
+    assert last["regime"] == "Expansion"  # old rule (sign only) gave Slowdown
+    sig = get_signal(_pmi_frame(values))
+    assert (sig["regime"], sig["direction"]) == ("Expansion", "flat")
+    assert sig["market_read"].startswith("Momentum stable")
+    assert sig["market_read"] == cfg.MARKET_READ_STABLE["Expansion"]
+
+
+def test_stable_momentum_keeps_trend_when_level_crosses_50():
+    hist = regime_history(_pmi_frame([51, 50.6, 50.2, 49.8, 50.4, 50.2, 49.9]))
+    assert hist["stable"].iloc[5:].all()
+    # first stable month takes the sign of its change (falling); next keeps it
+    assert hist["regime"].iloc[5:].tolist() == ["Slowdown", "Contraction"]
+
+
+def test_decisive_month_uses_regular_market_read():
+    sig = get_signal(_pmi_frame([50, 50, 50, 54, 55, 56]))
+    assert sig["market_read"] == cfg.MARKET_READ["Expansion"]
 
 
 def test_signal_skips_month_without_headline():
