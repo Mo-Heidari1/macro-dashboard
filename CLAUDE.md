@@ -38,7 +38,9 @@ src/
       calculations.py        # pure functions: DataFrame in -> DataFrame out
       config.py              # series IDs, thresholds, labels
 data/
-  sample/                    # committed data: public datasets, ISM (attributed), samples
+  yields/                    # Treasury yields history (committed)
+  ism/                       # ISM history + sector rankings (committed, attributed)
+  <module>/                  # one folder per dataset; config.py sets DATA_FOLDER
   local/                     # restricted data and source workbooks (git-ignored)
 scripts/                     # update scripts (manual entry, batch refresh)
 tests/                       # pytest, one test file per module
@@ -59,10 +61,10 @@ tests/                       # pytest, one test file per module
    - Never print, log or commit keys.
    - `.streamlit/secrets.toml` must stay in `.gitignore`.
 8. **Restricted data stays out of git.** S&P Global/RatingDog PMI and NFIB history live in `data/local/` (git-ignored). Each such module must:
-   - load `data/local/` if it exists, otherwise `data/sample/`
+   - load `data/local/` if it exists, otherwise a small public-safe sample committed in its own `data/<module>/` folder
    - show a small "sample data" note when running on the sample.
 
-   **ISM data is committed** (`data/sample/`) with this attribution on every page and in the README where it is shown: "Source: ISM Manufacturing Report On Business (Institute for Supply Management). 1948–Sep 2026: ISM monthly releases (ismworld.org), with historical data via Investing.com and Quandl." (update the end month as months are added). ISM industry comment text and source workbooks (`.xlsx`/`.xlsm`) are never committed; workbooks stay in `data/local/`.
+   **ISM data is committed** (`data/ism/`) with this attribution on every page and in the README where it is shown: "Source: ISM Manufacturing Report On Business (Institute for Supply Management). 1948–Sep 2026: ISM monthly releases (ismworld.org), with historical data via Investing.com and Quandl." (update the end month as months are added). ISM industry comment text and source workbooks (`.xlsx`/`.xlsm`) are never committed; workbooks stay in `data/local/`.
 9. **Behaviour-preserving refactors.** Any refactor must leave calculation outputs unchanged. Prove it with tests or a before/after comparison.
 
 ## Signal convention (every module)

@@ -1,5 +1,5 @@
 """
-Extraction: ISM source workbook (data/local/) -> committed CSVs in data/sample/.
+Extraction: ISM source workbook (data/local/) -> committed CSVs in data/ism/.
 
 Full rebuild from the configured workbook (SOURCE_WORKBOOK):
     python scripts/extract_ism.py
@@ -12,7 +12,7 @@ workbook made to months already stored are applied, and nothing is deleted;
 every revision and every difference not applied is printed and, with
 --report, saved as CSV.
 
-Produces the committed data files in data/sample/ (sector rankings only from
+Produces the committed data files in data/ism/ (sector rankings only from
 SECTORS_START on; the workbook itself stays in data/local/, git-ignored):
 - ism_history.csv     wide format, one row per month, one column per
                        sub-index (mirrors the 'Heat Map Summary' sheet shape).
@@ -179,8 +179,8 @@ def main():
     history, sectors = extract_workbook(args.workbook)
     # Only rankings from SECTORS_START on are ever written (and committed).
     sectors = sectors[sectors["Date"] >= pd.Timestamp(cfg.SECTORS_START)]
-    history_path = paths.sample_path(cfg.HISTORY_FILE)
-    sectors_path = paths.sample_path(cfg.SECTORS_FILE)
+    history_path = paths.dataset_path(cfg.DATA_FOLDER, cfg.HISTORY_FILE)
+    sectors_path = paths.dataset_path(cfg.DATA_FOLDER, cfg.SECTORS_FILE)
 
     if args.months:
         months = [pd.Timestamp(m + "-01") for m in args.months.split(",")]
@@ -210,7 +210,7 @@ def main():
                     os.path.join(args.report, f"ism_import_{name}.csv"), index=False
                 )
 
-    os.makedirs(paths.DATA_SAMPLE, exist_ok=True)
+    os.makedirs(paths.dataset_dir(cfg.DATA_FOLDER), exist_ok=True)
     history.to_csv(history_path, index=False)
     print(
         f"Wrote {history_path}: {len(history)} rows, "

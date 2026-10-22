@@ -41,8 +41,9 @@ cross-indicator regime scorecard on the landing page.
 
 ## Data and licensing
 
-Public series (Treasury.gov, FRED) are committed in full under
-`data/sample/`. ISM data is committed there too: the headline PMI and all
+Each dataset has its own folder. Public series (Treasury.gov, FRED) are
+committed in full under `data/yields/`. ISM data is committed under
+`data/ism/`: the headline PMI and all
 ten sub-indices since 1948, and industry growth/contraction rankings from
 April 2026, attributed as follows: "Source: ISM Manufacturing Report On Business (Institute for Supply Management). 1948–Sep 2026: ISM monthly releases (ismworld.org), with historical data via Investing.com and Quandl." ISM industry comment text and the source
 workbooks are never committed. See [`data/README.md`](data/README.md) for
@@ -55,7 +56,8 @@ Home.py                      landing page: cross-indicator summary
 pages/                       one page per indicator (UI only)
 src/core/                    shared paths, loaders, transforms, charts, signal schema
 src/modules/<indicator>/     config.py (series, thresholds, labels) + calculations.py (pure functions)
-data/sample/                 committed data (public series, attributed ISM data)
+data/yields/                 Treasury yields history (committed)
+data/ism/                    ISM history and sector rankings (committed, attributed)
 data/local/                  restricted data and source workbooks (git-ignored)
 scripts/                     data refresh and manual-entry tools
 tests/                       pytest suite
@@ -83,7 +85,7 @@ Community Cloud, select Python 3.12 under the app's advanced settings.
   Report On Business figures are entered by hand — in the ISM page's "Add
   This Month's Data" tab or with `python scripts/update_ism.py` (interactive,
   or pass the values as flags). Both write the committed
-  `data/sample/ism_history.csv`. `scripts/extract_ism.py --months` imports
+  `data/ism/ism_history.csv`. `scripts/extract_ism.py --months` imports
   months from the local source workbook, and `scripts/validate_ism.py`
   checks the committed files against it.
 

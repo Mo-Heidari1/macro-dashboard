@@ -1,14 +1,14 @@
 """
-Validate the committed ISM CSVs (data/sample/) against an ISM workbook's cached values.
+Validate the committed ISM CSVs (data/ism/) against an ISM workbook's cached values.
 
     python scripts/validate_ism.py --workbook data/local/<file>.xlsx --out <folder>
 
 Reads the workbook with pandas.read_excel (independently of the extraction
 code) and compares, at 1 dp:
-- every month of every sub-index sheet with data/sample/ism_history.csv
+- every month of every sub-index sheet with data/ism/ism_history.csv
 - the Heat Map Summary sheet (months x 11 series) with the same CSV
 - every Sectors cell (Direction and Score) from SECTORS_START on with
-  data/sample/ism_sectors.csv,
+  data/ism/ism_sectors.csv,
   and lists which months each Sectors block has
 Writes validation_ism_series.csv, validation_ism_sectors.csv,
 validation_ism_mismatches.csv and validation_ism_summary.txt to --out.
@@ -142,13 +142,17 @@ def main():
     args = parser.parse_args()
     os.makedirs(args.out, exist_ok=True)
 
-    csv = pd.read_csv(paths.sample_path(cfg.HISTORY_FILE), parse_dates=["Date"])
+    csv = pd.read_csv(
+        paths.dataset_path(cfg.DATA_FOLDER, cfg.HISTORY_FILE), parse_dates=["Date"]
+    )
     series, bad = compare_series(args.workbook, csv)
     hm_cells, hm_bad, hm_span = compare_heatmap(args.workbook, csv)
 
     wb_s, months = read_sectors(args.workbook)
     wb_s = wb_s[wb_s["Date"] >= pd.Timestamp(cfg.SECTORS_START)]  # committed range only
-    csv_s = pd.read_csv(paths.sample_path(cfg.SECTORS_FILE), parse_dates=["Date"])
+    csv_s = pd.read_csv(
+        paths.dataset_path(cfg.DATA_FOLDER, cfg.SECTORS_FILE), parse_dates=["Date"]
+    )
     key = ["Category", "Date", "Industry"]
     m = wb_s.merge(csv_s, on=key, how="outer", suffixes=("_wb", "_csv"), indicator=True)
     both = m[m["_merge"] == "both"]

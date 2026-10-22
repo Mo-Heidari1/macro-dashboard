@@ -3,7 +3,7 @@ ISM Manufacturing Index — headline PMI trend, sub-index heatmap, sub-index
 trend selector, sector growth/contraction table, composite sanity-check,
 and a monthly manual-update form.
 
-Data: ISM Manufacturing Report On Business (committed in data/sample/); the
+Data: ISM Manufacturing Report On Business (committed in data/ism/); the
 full source attribution (config SOURCE) is shown on the page.
 """
 
@@ -185,7 +185,7 @@ if data_entry:
         st.caption(
             "ISM publishes no free data API. Type in the figures from the monthly "
             "Report On Business on ismworld.org; they are saved to the committed "
-            "data file (data/sample/ism_history.csv), so commit it to publish them."
+            "data file (data/ism/ism_history.csv), so commit it to publish them."
         )
         with st.form("ism_update_form"):
             next_month = (latest_date + pd.DateOffset(months=1)).replace(day=1)
@@ -209,7 +209,8 @@ if data_entry:
             history = df[df["Date"] != date]
             history = pd.concat([history, pd.DataFrame([new_row])], ignore_index=True)
             history = history.sort_values("Date").reset_index(drop=True)
-            history.to_csv(paths.sample_path(cfg.HISTORY_FILE), index=False)
+            out_path = paths.dataset_path(cfg.DATA_FOLDER, cfg.HISTORY_FILE)
+            history.to_csv(out_path, index=False)
             st.success(
                 f"Saved {date.strftime('%B %Y')}. Refresh the page to see it reflected everywhere."
             )

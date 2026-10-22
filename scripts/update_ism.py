@@ -27,10 +27,14 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.core import paths
-from src.modules.ism_manufacturing.config import HISTORY_FILE, SUBINDEX_COLS
+from src.modules.ism_manufacturing.config import (
+    DATA_FOLDER,
+    HISTORY_FILE,
+    SUBINDEX_COLS,
+)
 
 # The committed history file (compiled from ISM's public monthly releases).
-CSV_PATH = paths.sample_path(HISTORY_FILE)
+CSV_PATH = paths.dataset_path(DATA_FOLDER, HISTORY_FILE)
 
 # CLI flag name -> ism_history.csv column name
 ARG_TO_COL = {

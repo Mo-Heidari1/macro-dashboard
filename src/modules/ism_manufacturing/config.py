@@ -4,8 +4,9 @@ Calculations read everything from here; nothing is hardcoded there.
 """
 
 # ---------- data ----------
-# Committed files in data/sample/. The source workbook stays in data/local/
+# Committed files in data/ism/. The source workbook stays in data/local/
 # (git-ignored).
+DATA_FOLDER = "ism"
 HISTORY_FILE = "ism_history.csv"
 SECTORS_FILE = "ism_sectors.csv"
 SOURCE_WORKBOOK = "ISM_Manufacturing_Index_Updated2.xlsx"  # through Sep 2026

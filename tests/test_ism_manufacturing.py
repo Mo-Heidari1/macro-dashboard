@@ -298,7 +298,7 @@ def test_committed_sectors_only_from_april_2026():
 
 def test_manual_entry_writes_committed_file(tmp_path, monkeypatch, committed):
     update_ism = _script("update_ism")
-    assert update_ism.CSV_PATH == paths.sample_path(cfg.HISTORY_FILE)
+    assert update_ism.CSV_PATH == paths.dataset_path("ism", "ism_history.csv")
     target = tmp_path / "ism_history.csv"
     committed.to_csv(target, index=False)
     monkeypatch.setattr(update_ism, "CSV_PATH", str(target))

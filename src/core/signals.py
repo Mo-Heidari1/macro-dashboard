@@ -67,7 +67,7 @@ def direction_label(
 
 def format_zscore(zscore: float | None) -> str:
     """Z-score for display: 2 dp with sign, or ZSCORE_NA_LABEL when the
-    module had too little history to compute one (e.g. on sample data)."""
+    module had too little history to compute one."""
     return ZSCORE_NA_LABEL if zscore is None else f"{zscore:+.2f}"
 
 

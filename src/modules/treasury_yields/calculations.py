@@ -28,9 +28,11 @@ from src.modules.treasury_yields import config as cfg
 
 
 def load_history(path: str | None = None) -> pd.DataFrame:
-    """Load the historical yield series (data/local, else data/sample), sorted by date."""
+    """Load the yield history (data/local override, else data/yields/), by date."""
     if path is None:
-        path, _ = paths.resolve_data_file(cfg.HISTORY_FILE)
+        path, _ = paths.resolve_data_file(
+            cfg.HISTORY_FILE, paths.dataset_dir(cfg.DATA_FOLDER)
+        )
     df = pd.read_csv(path, parse_dates=["Date"])
     return df.sort_values("Date").reset_index(drop=True)
 
