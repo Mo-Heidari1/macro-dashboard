@@ -12,6 +12,10 @@ SOURCE_WORKBOOK = "ISM_Manufacturing_Index_Updated2.xlsx"  # through Sep 2026
 LICENCE = "A"  # committed from public releases, with attribution
 SOURCE = "ISM Manufacturing Report On Business, compiled from public monthly releases"
 
+# The page's manual-entry form is shown only when this flag is true in
+# st.secrets or the environment; visitors otherwise see charts only.
+DATA_ENTRY_FLAG = "ENABLE_DATA_ENTRY"
+
 # Only sector rankings from this month on are committed; older rows, industry
 # comment text and workbooks never are.
 SECTORS_START = "2026-04-01"

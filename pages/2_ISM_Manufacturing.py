@@ -11,6 +11,7 @@ import pandas as pd
 import streamlit as st
 
 from src.core import charts, paths
+from src.core.credentials import flag_enabled
 from src.core.signals import format_zscore
 from src.core.transforms import last_complete_row, last_valid
 from src.modules.ism_manufacturing import config as cfg
@@ -55,15 +56,13 @@ col2.caption(
     + (" Extreme reading (above 55 or below 45)." if sig["extreme"] else "")
 )
 
-tab_overview, tab_heatmap, tab_sectors, tab_composite, tab_update = st.tabs(
-    [
-        "Overview",
-        "Sub-Index Heatmap",
-        "Sector Breakdown",
-        "Composite Check",
-        "Add This Month's Data",
-    ]
-)
+# Manual entry changes the committed data file, so it is off unless the
+# ENABLE_DATA_ENTRY flag is set (st.secrets or environment).
+data_entry = flag_enabled(cfg.DATA_ENTRY_FLAG, st.secrets)
+tab_names = ["Overview", "Sub-Index Heatmap", "Sector Breakdown", "Composite Check"]
+if data_entry:
+    tab_names.append("Add This Month's Data")
+tab_overview, tab_heatmap, tab_sectors, tab_composite, *tab_update = st.tabs(tab_names)
 
 # ---------- Overview tab ----------
 with tab_overview:
@@ -180,36 +179,37 @@ with tab_composite:
     )
 
 # ---------- Add This Month's Data tab ----------
-with tab_update:
-    st.subheader("Add this month's ISM report")
-    st.caption(
-        "ISM publishes no free data API. Type in the figures from the monthly "
-        "Report On Business on ismworld.org; they are saved to the committed "
-        "data file (data/sample/ism_history.csv), so commit it to publish them."
-    )
-    with st.form("ism_update_form"):
-        next_month = (latest_date + pd.DateOffset(months=1)).replace(day=1)
-        report_date = st.date_input("Report month", value=next_month)
-        cols = st.columns(3)
-        inputs = {}
-        for i, sub in enumerate(SUBINDEX_COLS):
-            inputs[sub] = cols[i % 3].number_input(
-                sub,
-                min_value=0.0,
-                max_value=100.0,
-                step=0.1,
-                value=None,
-                format="%.1f",
-            )
-        submitted = st.form_submit_button("Save this month")
-
-    if submitted:
-        date = pd.Timestamp(report_date).replace(day=1)
-        new_row = {"Date": date, **inputs}
-        history = df[df["Date"] != date]
-        history = pd.concat([history, pd.DataFrame([new_row])], ignore_index=True)
-        history = history.sort_values("Date").reset_index(drop=True)
-        history.to_csv(paths.sample_path(cfg.HISTORY_FILE), index=False)
-        st.success(
-            f"Saved {date.strftime('%B %Y')}. Refresh the page to see it reflected everywhere."
+if data_entry:
+    with tab_update[0]:
+        st.subheader("Add this month's ISM report")
+        st.caption(
+            "ISM publishes no free data API. Type in the figures from the monthly "
+            "Report On Business on ismworld.org; they are saved to the committed "
+            "data file (data/sample/ism_history.csv), so commit it to publish them."
         )
+        with st.form("ism_update_form"):
+            next_month = (latest_date + pd.DateOffset(months=1)).replace(day=1)
+            report_date = st.date_input("Report month", value=next_month)
+            cols = st.columns(3)
+            inputs = {}
+            for i, sub in enumerate(SUBINDEX_COLS):
+                inputs[sub] = cols[i % 3].number_input(
+                    sub,
+                    min_value=0.0,
+                    max_value=100.0,
+                    step=0.1,
+                    value=None,
+                    format="%.1f",
+                )
+            submitted = st.form_submit_button("Save this month")
+
+        if submitted:
+            date = pd.Timestamp(report_date).replace(day=1)
+            new_row = {"Date": date, **inputs}
+            history = df[df["Date"] != date]
+            history = pd.concat([history, pd.DataFrame([new_row])], ignore_index=True)
+            history = history.sort_values("Date").reset_index(drop=True)
+            history.to_csv(paths.sample_path(cfg.HISTORY_FILE), index=False)
+            st.success(
+                f"Saved {date.strftime('%B %Y')}. Refresh the page to see it reflected everywhere."
+            )
