@@ -2,7 +2,7 @@
 Validate the stored yield history against Treasury.gov, year by year.
 
     python scripts/validate_yields.py --out <folder> [--start 1990] [--end 2026]
-        [--cache <folder>]
+        [--cache <folder>] [--since YYYY-MM-DD]
 
 For every year, downloads the nominal and real (TIPS) par yield curves
 (throttled, with retries), aligns them to the history's dates with
@@ -67,6 +67,9 @@ def main():
     parser.add_argument("--start", type=int, default=1990)
     parser.add_argument("--end", type=int, default=pd.Timestamp.today().year)
     parser.add_argument("--cache", default=None)
+    parser.add_argument(
+        "--since", default=None, help="only check rows dated after this (YYYY-MM-DD)"
+    )
     args = parser.parse_args()
     os.makedirs(args.out, exist_ok=True)
     if args.cache:
@@ -77,6 +80,8 @@ def main():
     previous = {}  # prior year's observations, for early-January Sunday rows
     for year in range(args.start, args.end + 1):
         rows = history[history["Date"].dt.year == year]
+        if args.since:
+            rows = rows[rows["Date"] > pd.Timestamp(args.since)]
         for curve, url, col_map in (
             ("nominal", TREASURY_NOMINAL_URL, cfg.NOMINAL_COL_MAP),
             ("TIPS", TREASURY_TIPS_URL, cfg.TIPS_COL_MAP),

@@ -168,13 +168,36 @@ def regime_history(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def peak_note(
+    dates: pd.Series, values: pd.Series, trend: str, stable: bool
+) -> str | None:
+    """
+    Sentence noting that the latest value is below its high of the last
+    PEAK_WINDOW_MONTHS observations (e.g. "3-month average rising, but off
+    the July peak (55.6)."). None when the latest value is that high.
+    """
+    window = pd.Series(values.to_numpy(), index=pd.to_datetime(dates.to_numpy()))
+    window = window.dropna().tail(cfg.PEAK_WINDOW_MONTHS)
+    if window.empty:
+        return None
+    peak = window.max()
+    if window.iloc[-1] >= peak:
+        return None
+    peak_date = window[window == peak].index[-1]  # most recent if tied
+    as_of = window.index[-1]
+    month = f"{peak_date:%B}" if peak_date.year == as_of.year else f"{peak_date:%B %Y}"
+    template = cfg.PEAK_NOTES["stable" if stable else trend]
+    return template.format(month=month, peak=peak)
+
+
 def get_signal(df: pd.DataFrame) -> dict:
     """
     Headline PMI reading in the shared signal schema, as of the last month
     with PMI populated. Change is MoM; direction and regime use the 3-month
     average vs the prior 3-month average, and inside the ±1.0 band the
     regime keeps the prior month's trend (see regime_history); z-score is
-    vs the trailing ZSCORE_WINDOW_MONTHS.
+    vs the trailing ZSCORE_WINDOW_MONTHS. market_read is prefixed with
+    peak_note() when the PMI is below its recent high.
     """
     col = cfg.SIGNAL_COL
     i = last_complete_row(df, [col])
@@ -191,6 +214,8 @@ def get_signal(df: pd.DataFrame) -> dict:
 
     regime = latest["regime"]
     reads = cfg.MARKET_READ_STABLE if latest["stable"] else cfg.MARKET_READ
+    note = peak_note(history["Date"], history[col], latest["trend"], latest["stable"])
+    market_read = reads[regime] if note is None else f"{note} {reads[regime]}"
     return {
         "indicator": cfg.INDICATOR,
         "region": cfg.REGION,
@@ -203,6 +228,110 @@ def get_signal(df: pd.DataFrame) -> dict:
             momentum, cfg.DIRECTION_BAND, cfg.DIRECTION_LABELS
         ),
         "regime": regime,
-        "market_read": reads[regime],
+        "market_read": market_read,
         "extreme": level > cfg.EXTREME_HIGH or level < cfg.EXTREME_LOW,
     }
+
+
+def merge_months(
+    current: pd.DataFrame,
+    incoming: pd.DataFrame,
+    keys: list[str],
+    value_cols: list[str],
+    months: list[pd.Timestamp],
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Merge a fresh workbook extract into the stored CSV.
+
+    - rows dated in `months` are taken from `incoming` (new or replaced)
+    - rows in both: cells the workbook revised (value -> different value,
+      or empty -> value) are applied; cells the workbook left empty are kept
+    - rows only in `current` are kept; earlier rows only in `incoming` are
+      not imported
+
+    Returns (merged, report). The report lists every applied revision and
+    every difference not applied: kind is one of "imported", "revised",
+    "kept: empty in workbook", "kept: not in workbook",
+    "skipped: earlier month not in CSV".
+    """
+    months = {pd.Timestamp(m) for m in months}
+    cur = current.set_index(keys)
+    inc = incoming.set_index(keys)
+    in_months = inc.index.get_level_values("Date").isin(list(months))
+    report = []
+
+    def key_dict(k):
+        return dict(zip(keys, k if isinstance(k, tuple) else (k,)))
+
+    for k in inc.index[in_months]:
+        report.append(
+            {
+                **key_dict(k),
+                "kind": "imported",
+                "column": None,
+                "csv": None,
+                "workbook": None,
+            }
+        )
+
+    merged = cur[~cur.index.get_level_values("Date").isin(list(months))].copy()
+    for k in merged.index.intersection(inc.index):
+        for col in value_cols:
+            old, new = merged.at[k, col], inc.at[k, col]
+            if pd.isna(new) and pd.isna(old):
+                continue
+            if pd.isna(new):
+                kind = "kept: empty in workbook"
+            elif pd.isna(old) or old != new:
+                kind = "revised"
+                merged.at[k, col] = new
+            else:
+                continue
+            report.append(
+                {
+                    **key_dict(k),
+                    "kind": kind,
+                    "column": col,
+                    "csv": old,
+                    "workbook": new,
+                }
+            )
+    for k in merged.index.difference(inc.index):
+        report.append(
+            {
+                **key_dict(k),
+                "kind": "kept: not in workbook",
+                "column": None,
+                "csv": None,
+                "workbook": None,
+            }
+        )
+    earlier_only = inc.index[~in_months].difference(cur.index)
+    for k in earlier_only:
+        report.append(
+            {
+                **key_dict(k),
+                "kind": "skipped: earlier month not in CSV",
+                "column": None,
+                "csv": None,
+                "workbook": None,
+            }
+        )
+
+    merged = pd.concat([merged, inc[in_months]]).reset_index()
+    # Keep the stored order: non-date keys in order of first appearance
+    # (sheet order), then by date.
+    rank = {
+        col: {
+            v: i
+            for i, v in enumerate(pd.unique(pd.concat([current[col], incoming[col]])))
+        }
+        for col in keys
+        if col != "Date"
+    }
+    merged = merged.sort_values(
+        keys, key=lambda s: s.map(rank[s.name]) if s.name in rank else s, kind="stable"
+    )
+    merged = merged[current.columns].reset_index(drop=True)
+    cols = keys + ["kind", "column", "csv", "workbook"]
+    return merged, pd.DataFrame(report, columns=cols)

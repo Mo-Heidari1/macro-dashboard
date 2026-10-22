@@ -34,7 +34,9 @@ def test_missing_key_raises_without_echoing_values(tmp_path, monkeypatch):
 
 def test_secrets_file_is_git_ignored():
     with open(os.path.join(paths.ROOT, ".gitignore"), encoding="utf-8") as f:
-        assert ".streamlit/secrets.toml" in f.read().splitlines()
+        lines = f.read().splitlines()
+    # the exact file and any editor-added suffix (e.g. secrets.toml.txt)
+    assert ".streamlit/secrets.toml*" in lines
 
 
 def test_update_script_rejects_key_on_command_line():
@@ -57,3 +59,11 @@ def test_no_pickle_in_code():
                         if "pickle" in f.read():
                             hits.append(name)
     assert hits == []
+
+
+def test_secrets_toml_with_byte_order_mark(tmp_path, monkeypatch):
+    secrets = tmp_path / "secrets.toml"
+    bom = b"\xef\xbb\xbf"
+    secrets.write_bytes(bom + f'{KEY} = "from-bom-file"\n'.encode())
+    monkeypatch.delenv(KEY, raising=False)
+    assert get_secret(KEY, str(secrets)) == "from-bom-file"

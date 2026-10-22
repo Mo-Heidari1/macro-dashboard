@@ -1,11 +1,17 @@
 """
-One-time extraction: ISM_Manufacturing_Index_Updated.xlsx -> CSV files.
+Extraction: ISM source workbook -> CSV files in data/local/.
 
-Run once (or whenever the source workbook is replaced) with:
+Full rebuild from the configured workbook (SOURCE_WORKBOOK):
     python scripts/extract_ism.py
+Import specific months from a newer workbook, keeping everything else:
+    python scripts/extract_ism.py --workbook data/local/<file>.xlsx         --months 2026-07,2026-08,2026-09 --report <folder>
 
-Reads data/local/ISM_Manufacturing_Index_Updated.xlsx and produces, in
-data/local/ (git-ignored, the data is licensed):
+In --months mode the requested months are added (or replaced), revisions the
+workbook made to months already stored are applied, and nothing is deleted;
+every revision and every difference not applied is printed and, with
+--report, saved as CSV.
+
+Produces, in data/local/ (git-ignored, the data is licensed):
 - ism_history.csv     wide format, one row per month, one column per
                        sub-index (mirrors the 'Heat Map Summary' sheet shape).
                        This is the file load_ism_history()
@@ -18,6 +24,8 @@ artifact in the source file) — we filter to rows where the value column is
 non-null rather than trusting max_row.
 """
 
+import argparse
+import datetime
 import os
 import sys
 
@@ -28,6 +36,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.core import paths
 from src.modules.ism_manufacturing import config as cfg
+from src.modules.ism_manufacturing.calculations import merge_months
 
 XLSX_PATH = paths.local_path(cfg.SOURCE_WORKBOOK)
 
@@ -88,23 +97,25 @@ def extract_sectors(ws) -> pd.DataFrame:
     one per category (headline PMI plus each sub-index that ISM publishes
     an industry breakdown for: New Orders, Production, Employment,
     Deliveries, Inventories, Customer Inventories). Each sub-table starts
-    with a header row where column B holds the category label and columns
-    C, E, G, ... hold month dates, followed by a blank row, then its
-    industry rows, ending at the next header row or a run of blank rows.
+    with a header row where column B holds the category label and month
+    dates sit above (Direction, Score) column pairs, followed by a blank
+    row, then its industry rows, ending at the next header row.
+
+    Month headers are read from every column, not every other column: the
+    pairs can shift by one where a spacer column was left (e.g. after a
+    gap in the months), and a fixed C, E, G, ... step would skip them.
     """
     # Find every header row: col B has a label AND col C is a date.
     headers = []  # (row, category, [(date, direction_col, score_col), ...])
     for r in range(1, ws.max_row + 1):
         label = ws.cell(r, 2).value
         first = ws.cell(r, 3).value
-        if label is not None and isinstance(first, __import__("datetime").datetime):
-            months = []
-            c = 3
-            while c <= ws.max_column:
-                date = ws.cell(r, c).value
-                if date is not None:
-                    months.append((pd.Timestamp(date), c, c + 1))
-                c += 2
+        if label is not None and isinstance(first, datetime.datetime):
+            months = [
+                (pd.Timestamp(ws.cell(r, c).value), c, c + 1)
+                for c in range(3, ws.max_column + 1)
+                if isinstance(ws.cell(r, c).value, datetime.datetime)
+            ]
             headers.append((r, label, months))
 
     records = []
@@ -140,28 +151,67 @@ CATEGORY_LABEL_MAP = {
 }
 
 
-def main():
-    wb = openpyxl.load_workbook(XLSX_PATH, data_only=True)
-
+def extract_workbook(path: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(history, sectors) extracted from an ISM workbook's cached values."""
+    wb = openpyxl.load_workbook(path, data_only=True)
     merged = None
     for sheet_name, (value_col, out_col) in SUBINDEX_SHEETS.items():
         df = extract_sheet(wb[sheet_name], value_col)
         df = df.rename(columns={value_col: out_col})
         merged = df if merged is None else merged.merge(df, on="Date", how="outer")
+    history = merged.sort_values("Date").reset_index(drop=True)[COLUMN_ORDER]
+    return history, extract_sectors(wb["Sectors"])
 
-    merged = merged.sort_values("Date").reset_index(drop=True)
-    merged = merged[COLUMN_ORDER]
+
+def main():
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("--workbook", default=XLSX_PATH)
+    parser.add_argument("--months", default=None, help="e.g. 2026-07,2026-08")
+    parser.add_argument(
+        "--report", default=None, help="folder for the merge report CSVs"
+    )
+    args = parser.parse_args()
+
+    history, sectors = extract_workbook(args.workbook)
+    history_path = paths.local_path(cfg.HISTORY_FILE)
+    sectors_path = paths.local_path(cfg.SECTORS_FILE)
+
+    if args.months:
+        months = [pd.Timestamp(m + "-01") for m in args.months.split(",")]
+        current_h = pd.read_csv(history_path, parse_dates=["Date"])
+        current_s = pd.read_csv(sectors_path, parse_dates=["Date"])
+        history, report_h = merge_months(
+            current_h, history, ["Date"], COLUMN_ORDER[1:], months
+        )
+        sectors, report_s = merge_months(
+            current_s,
+            sectors,
+            ["Category", "Industry", "Date"],
+            ["Direction", "Score"],
+            months,
+        )
+        for name, rep in (("history", report_h), ("sectors", report_s)):
+            counts = rep["kind"].value_counts().items()
+            print(f"\n{name}: " + ", ".join(f"{k}={n}" for k, n in counts))
+            print(
+                rep[rep["kind"] == "revised"].to_string(index=False)
+                if (rep["kind"] == "revised").any()
+                else "  no revised values"
+            )
+            if args.report:
+                os.makedirs(args.report, exist_ok=True)
+                rep.to_csv(
+                    os.path.join(args.report, f"ism_import_{name}.csv"), index=False
+                )
 
     os.makedirs(paths.DATA_LOCAL, exist_ok=True)
-    out_path = paths.local_path(cfg.HISTORY_FILE)
-    merged.to_csv(out_path, index=False)
+    history.to_csv(history_path, index=False)
     print(
-        f"Wrote {out_path}: {len(merged)} rows, "
-        f"{merged['Date'].min().date()} to {merged['Date'].max().date()}"
+        f"Wrote {history_path}: {len(history)} rows, "
+        f"{history['Date'].min().date()} to {history['Date'].max().date()}"
     )
-
-    sectors = extract_sectors(wb["Sectors"])
-    sectors_path = paths.local_path(cfg.SECTORS_FILE)
     sectors.to_csv(sectors_path, index=False)
     print(
         f"Wrote {sectors_path}: {len(sectors)} rows, "

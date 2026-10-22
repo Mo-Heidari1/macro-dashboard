@@ -24,8 +24,9 @@ def get_secret(name: str, secrets_file: str | None = None) -> str:
         return value
     path = secrets_file or paths.SECRETS_FILE
     if os.path.exists(path):
-        with open(path, "rb") as f:
-            value = str(tomllib.load(f).get(name, "")).strip()
+        # utf-8-sig: tolerate the byte-order mark some Windows editors add
+        with open(path, encoding="utf-8-sig") as f:
+            value = str(tomllib.loads(f.read()).get(name, "")).strip()
         if value:
             return value
     raise MissingSecretError(

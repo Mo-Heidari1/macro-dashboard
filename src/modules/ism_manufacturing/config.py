@@ -6,7 +6,7 @@ Calculations read everything from here; nothing is hardcoded there.
 # ---------- data ----------
 HISTORY_FILE = "ism_history.csv"
 SECTORS_FILE = "ism_sectors.csv"
-SOURCE_WORKBOOK = "ISM_Manufacturing_Index_Updated.xlsx"
+SOURCE_WORKBOOK = "ISM_Manufacturing_Index_Updated2.xlsx"  # through Sep 2026
 LICENCE = "R"  # proprietary: full history in data/local/, sample in data/sample/
 SOURCE = "Institute for Supply Management (ISM), Manufacturing ISM Report On Business"
 
@@ -123,4 +123,14 @@ MARKET_READ_STABLE = {
         "Momentum stable: factory activity is below 50 and the last decisive move was up, so "
         "the early-cycle read holds while momentum stays positive."
     ),
+}
+
+# Prefix to market_read when the latest PMI is below its high of the last
+# PEAK_WINDOW_MONTHS months (current month included). Text only: regime,
+# direction and every threshold above are unaffected.
+PEAK_WINDOW_MONTHS = 3
+PEAK_NOTES = {
+    "rising": "3-month average rising, but off the {month} peak ({peak:.1f}).",
+    "falling": "3-month average falling, and off the {month} peak ({peak:.1f}).",
+    "stable": "Off the {month} peak ({peak:.1f}).",
 }
