@@ -1,94 +1,137 @@
 # Macro Dashboard
 
-A multi-page Streamlit dashboard that tracks leading, coincident and lagging
-macroeconomic indicators and turns them into a read on the macro regime and
-what it implies for rates, equities and the dollar. Every number on the page
-is traceable to a named source.
+A Streamlit dashboard that reads the US macro regime from the Treasury yield
+curve and the ISM Manufacturing PMI, with every number traced to its source.
 
-## Indicators
+**Live app:** https://mo-macro-dashboard.streamlit.app
 
-**US Treasury Yields & Curve** (Treasury.gov, FRED). The yield curve is one
-of the most reliable leading indicators of the US cycle: the 2s10s spread
-compresses or inverts as markets price policy tightening and slower growth,
-and re-steepens ahead of easing. The page shows current yields and changes by
-tenor, curve snapshots across dates, any tenor-vs-tenor spread over time, and
-breakeven (implied) inflation from nominal minus TIPS yields. The module's
-signal classifies the latest four-week curve move as a bull/bear steepener or
-flattener.
+![Macro Dashboard home page: 10-year yield, 2s10s spread, ISM PMI and the PMI vs 10-year yield chart](docs/screenshot.png)
 
-**ISM Manufacturing PMI** (Institute for Supply Management). A diffusion
-index where 50 separates expansion from contraction; it leads industrial
-production and corporate earnings, and its New Orders and Prices components
-are closely watched for growth and inflation turns. The page shows the
-headline and all ten sub-indices, a sub-index heatmap, industry-level
-growth/contraction rankings, and a reconstruction of the headline from its
-weighted components. The module's signal places the PMI in one of four
-regimes (Expansion, Slowdown, Contraction, Recovery) from its level versus 50
-and its three-month momentum.
+## What it shows
 
-*Source: ISM Manufacturing Report On Business (Institute for Supply Management). 1948–Sep 2026: ISM monthly releases (ismworld.org), with historical data via Investing.com and Quandl.*
+**Treasury Yields & Curve.** The yield curve is one of the most reliable
+leading indicators of the US cycle: the 2s10s spread compresses or inverts as
+markets price policy tightening and slower growth, and re-steepens ahead of
+easing. The page shows yields and their weekly, monthly, quarterly and yearly
+changes for every tenor from 1 month to 30 years, curve snapshots across
+dates, any tenor-against-tenor spread over time, and breakeven inflation
+(nominal minus TIPS yields).
 
-The landing page sets the PMI against the 10-year yield as a cross-check
-between the growth signal and the rates market.
+**ISM Manufacturing PMI.** A diffusion index where 50 separates expansion
+from contraction. It leads industrial production and corporate earnings, and
+its New Orders and Prices components are watched for turns in growth and
+inflation. The page shows the headline and all ten sub-indices since 1948, a
+sub-index heatmap, which manufacturing industries are growing or contracting
+each month, and a reconstruction of the headline from its weighted
+components.
 
-## Signals
+**Home** sets the PMI against the 10-year yield, a cross-check between the
+growth signal and the rates market.
 
-Every module exposes `get_signal(df)` returning one record in a shared
-schema (level, change, z-score, direction, regime, a one-line market read,
-and the "as of" date of the last complete observation). Thresholds and
-labels live in each module's `config.py`. These records will feed a
-cross-indicator regime scorecard on the landing page.
+### How the signals work
 
-## Data and licensing
+Each indicator produces one reading in a common format (level, change,
+z-score, direction, regime and a one-line market read), dated to its last
+complete observation.
 
-Each dataset has its own folder. Public series (Treasury.gov, FRED) are
-committed in full under `data/yields/`. ISM data is committed under
-`data/ism/`: the headline PMI and all
-ten sub-indices since 1948, and industry growth/contraction rankings from
-April 2026, attributed as follows: "Source: ISM Manufacturing Report On Business (Institute for Supply Management). 1948–Sep 2026: ISM monthly releases (ismworld.org), with historical data via Investing.com and Quandl." ISM industry comment text and the source
-workbooks are never committed. See [`data/README.md`](data/README.md) for
-each file's source, licence and update frequency.
+- **Curve regime.** The four-week change in the 2s10s spread is combined with
+  the direction of the overall yield level: *bull steepener* (yields falling,
+  front end faster), *bear steepener*, *bull flattener* or *bear flattener*.
+  Moves within ±10bp count as range-bound.
+- **ISM regime.** The PMI's level against 50 is combined with its momentum
+  (the latest three-month average against the prior three months) to give
+  *Expansion*, *Slowdown*, *Contraction* or *Recovery*. Momentum within ±1.0
+  point is treated as stable, and the prior month's direction carries
+  forward, so the regime does not flip on noise. Readings above 55 or below
+  45 are flagged as extreme, and a note appears when the PMI has fallen at
+  least 1 point from its three-month high.
+- **Z-score.** Each level is compared with its own trailing ten years, so a
+  reading can be judged against its recent history rather than a fixed
+  threshold.
 
-## Structure
+## Data sources
+
+| Source | Series | Update frequency | Licence / attribution |
+|---|---|---|---|
+| U.S. Department of the Treasury | Daily par yield curve rates: nominal 1m–30y, real (TIPS) 5y–30y | Daily (weekly history before 2026) | Public U.S. government data |
+| FRED, Federal Reserve Bank of St. Louis | EFFR, effective Fed Funds rate | Daily | Subject to FRED's terms of use |
+| Institute for Supply Management | Manufacturing PMI and 10 sub-indices (1948 on); industries reporting growth or contraction (from April 2026) | Monthly | Source: ISM Manufacturing Report On Business (Institute for Supply Management). 1948–Sep 2026: ISM monthly releases (ismworld.org), with historical data via Investing.com and Quandl. |
+
+Per-file details are in [`data/README.md`](data/README.md).
+
+## How I check the data
+
+- **Treasury yields:** compared cell by cell with Treasury.gov's own yield
+  curve files for 1990–2026: 21,874 nominal and 6,555 TIPS values, 0
+  mismatches. Rows added since were checked the same way (416 Treasury values,
+  and 26 Fed Funds values against FRED), also with 0 mismatches. The checks
+  found and fixed three problems in the stored history: TIPS yields missing
+  for 2026, a 3-month series that had come from a different rate on 228 weekly
+  dates, and one weekly snapshot holding a stale close.
+- **ISM:** compared with the cached values in the source workbook: 8,286
+  values across all 11 series and every month since 1948, 1,716 cells of the
+  workbook's own heat-map summary, and 432 industry rankings, with 0
+  mismatches.
+- **Calculations:** 170+ automated tests, including known values from the
+  official releases, missing-data cases and the signal format.
+
+## Architecture
 
 ```
-Home.py                      landing page: cross-indicator summary
-pages/                       one page per indicator (UI only)
-src/core/                    shared paths, loaders, transforms, charts, signal schema
-src/modules/<indicator>/     config.py (series, thresholds, labels) + calculations.py (pure functions)
-data/yields/                 Treasury yields history (committed)
-data/ism/                    ISM history and sector rankings (committed, attributed)
-data/local/                  restricted data and source workbooks (git-ignored)
-scripts/                     data refresh and manual-entry tools
-tests/                       pytest suite
+data/yields/, data/ism/   committed CSVs (one folder per dataset)
+        │
+        ▼
+src/core/                 paths, loaders, shared maths, chart builders, signal schema
+src/modules/<indicator>/  config.py (series, thresholds, labels)
+                          calculations.py (pure functions: DataFrame in, DataFrame out)
+        │
+        ▼
+Home.py, pages/           Streamlit UI only
 ```
 
-## Run it
+Every module's `get_signal()` returns the same record, so the landing page can
+combine indicators into one regime scorecard. Thresholds and labels live in
+each module's `config.py`, never in the calculations.
+
+## Run it locally
 
 ```
+git clone https://github.com/Mo-Heidari1/macro-dashboard.git && cd macro-dashboard
 pip install -r requirements.txt
 python -m streamlit run Home.py
-python -m pytest
 ```
 
-Dependencies are pinned for Python 3.12 (`requirements.txt`). On Streamlit
-Community Cloud, select Python 3.12 under the app's advanced settings.
+The app runs from the committed data; no key is needed to view it. Refreshing
+the Treasury data (`python scripts/update_yields.py`) needs a free
+[FRED API key](https://fred.stlouisfed.org/docs/api/api_key.html), read from
+the `FRED_API_KEY` environment variable or from `.streamlit/secrets.toml`:
 
-## Keeping the data current
+```
+FRED_API_KEY = "your-key"
+```
 
-- **Treasury yields:** `python scripts/update_yields.py` appends the latest
-  Treasury.gov curves and the FRED effective Fed Funds rate. It reads a free
-  FRED key (https://fred.stlouisfed.org/docs/api/api_key.html) from the
-  `FRED_API_KEY` environment variable or `.streamlit/secrets.toml`; keys are
-  never passed on the command line.
-- **ISM Manufacturing:** ISM publishes no free data API, so each month's
-  Report On Business figures are entered by hand — in the ISM page's "Add
-  This Month's Data" tab or with `python scripts/update_ism.py` (interactive,
-  or pass the values as flags). Both write the committed
-  `data/ism/ism_history.csv`. `scripts/extract_ism.py --months` imports
-  months from the local source workbook, and `scripts/validate_ism.py`
-  checks the committed files against it.
+Dependencies are pinned for Python 3.12.
 
-Stored data is CSV only. An earlier pickle-based version broke across
-machines on a pandas/numpy version mismatch when unpickling `datetime64`
-columns.
+## Roadmap
+
+Next modules, in build order: credit spreads (IG and HY option-adjusted
+spreads), Fed policy and liquidity (Fed Funds, M2, the Fed's balance sheet),
+CPI and PPI, the trade-weighted dollar, ISM Services, consumer sentiment,
+building permits, euro-area benchmark yields, the EU Economic Sentiment
+Indicator, CFTC positioning, China PMIs, NFIB small-business optimism and a
+commodities basket. Once five or more modules report signals, the landing
+page will combine them into a single regime scorecard.
+
+## Licence
+
+The code is released under the [MIT License](LICENSE). The data belongs to
+its sources (the U.S. Department of the Treasury, the Federal Reserve Bank of
+St. Louis and the Institute for Supply Management) and remains subject to
+their terms; see the attribution above.
+
+---
+
+**GitHub description:** Macro regime dashboard: US Treasury yield curve and
+ISM Manufacturing PMI signals, validated against their sources (Streamlit).
+
+**Topics:** `macroeconomics` `streamlit` `quantitative-finance` `python` `fred-api`
