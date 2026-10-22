@@ -97,3 +97,15 @@ def test_ism_attribution_is_exact():
             text = f.read()
         assert expected in text, doc
         assert "compiled from public" not in text, doc
+
+
+@pytest.mark.parametrize("page", PAGES)
+def test_coloured_table_cells_set_their_own_text_colour(page):
+    # A pale fill without an explicit text colour is unreadable in dark mode.
+    import re
+
+    at = _run(page)
+    for frame in at.dataframe:
+        for rule in re.findall(r"\{([^}]*)\}", frame.proto.styler.styles):
+            if "background-color" in rule:
+                assert re.search(r"(?<!background-)color\s*:", rule), rule

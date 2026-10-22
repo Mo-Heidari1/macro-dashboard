@@ -133,3 +133,20 @@ def bar_chart(x, y, *, height: int, yaxis_title: str) -> go.Figure:
     fig = go.Figure()
     fig.add_trace(go.Bar(x=x, y=y))
     return _layout(fig, height=height, yaxis_title=yaxis_title, margin={"t": 20})
+
+
+# Table cells labelled Growth / Contraction / Neutral: pale fills always paired
+# with dark text, so the label stays readable on both light and dark themes
+# (Streamlit's dark theme otherwise draws near-white text on the pale fill).
+STATUS_CELL_FILLS = {
+    "Growth": "#c6efce",
+    "Contraction": "#ffc7ce",
+    "Neutral": "#fff2cc",
+}
+STATUS_CELL_TEXT = "#1a1a1a"
+
+
+def status_cell_css(value) -> str:
+    """Pandas Styler CSS for a status label cell; empty for any other value."""
+    fill = STATUS_CELL_FILLS.get(value)
+    return f"background-color: {fill}; color: {STATUS_CELL_TEXT}" if fill else ""
