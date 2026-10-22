@@ -174,10 +174,8 @@ def test_stable_momentum_keeps_prior_regime():
     assert last["regime"] == "Expansion"  # old rule (sign only) gave Slowdown
     sig = get_signal(_pmi_frame(values))
     assert (sig["regime"], sig["direction"]) == ("Expansion", "flat")
-    # below its 3-month high (Aug 55.0), so the stable read carries a peak note
-    assert sig["market_read"] == (
-        "Off the August peak (55.0). " + cfg.MARKET_READ_STABLE["Expansion"]
-    )
+    # only 0.8 below its 3-month high (Aug 55.0): under PEAK_NOTE_MIN_DROP
+    assert sig["market_read"] == cfg.MARKET_READ_STABLE["Expansion"]
 
 
 def test_stable_momentum_keeps_trend_when_level_crosses_50():
@@ -358,10 +356,11 @@ def test_peak_note_wording_when_falling_and_when_stable():
     assert falling["market_read"].startswith(
         "3-month average falling, and off the May peak (52.5). "
     )
-    stable = get_signal(_pmi_frame([50, 50, 50, 54, 55, 56, 55.5, 55.0, 54.6, 54.2]))
-    assert stable["direction"] == "flat"
+    # momentum 0.0 (stable, trend carried as rising); 1.1 below the Aug peak
+    stable = get_signal(_pmi_frame([50, 50, 50, 54, 55, 56, 55.5, 56.0, 55.6, 54.9]))
+    assert (stable["regime"], stable["direction"]) == ("Expansion", "flat")
     assert stable["market_read"] == (
-        "Off the August peak (55.0). " + cfg.MARKET_READ_STABLE["Expansion"]
+        "Off the August peak (56.0). " + cfg.MARKET_READ_STABLE["Expansion"]
     )
 
 
@@ -385,13 +384,13 @@ def test_peak_note_uses_latest_tied_peak_and_names_the_year_across_january():
 @pytest.mark.parametrize(
     "latest, noted",
     [
-        (55.2, False),  # 0.4 below the 55.6 peak: just under the cut, no note
-        (55.1, True),  # exactly 0.5 below: at the cut, noted
-        (55.0, True),  # 0.6 below: just over the cut, noted
+        (54.7, False),  # 0.9 below the 55.6 peak: just under the cut, no note
+        (54.6, True),  # exactly 1.0 below: at the cut, noted
+        (54.5, True),  # 1.1 below: just over the cut, noted
     ],
 )
 def test_peak_note_needs_minimum_drop(latest, noted):
-    assert cfg.PEAK_NOTE_MIN_DROP == 0.5
+    assert cfg.PEAK_NOTE_MIN_DROP == 1.0
     dates = pd.Series(pd.date_range("2026-07-01", periods=3, freq="MS"))
     note = peak_note(dates, pd.Series([55.6, 55.4, latest]), "rising", False)
     assert (note is not None) is noted

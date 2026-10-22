@@ -130,7 +130,7 @@ MARKET_READ_STABLE = {
 # included). Text only: regime, direction and every threshold above are
 # unaffected.
 PEAK_WINDOW_MONTHS = 3
-PEAK_NOTE_MIN_DROP = 0.5  # smaller pullbacks are treated as noise: no note
+PEAK_NOTE_MIN_DROP = 1.0  # matches DIRECTION_BAND; smaller pullbacks get no note
 PEAK_NOTES = {
     "rising": "3-month average rising, but off the {month} peak ({peak:.1f}).",
     "falling": "3-month average falling, and off the {month} peak ({peak:.1f}).",
