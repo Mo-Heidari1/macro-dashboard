@@ -1,5 +1,5 @@
 """
-Shared data loaders: CSV readers with the local -> sample fallback, and
+Shared data loaders: CSV readers (with an optional data/local/ override), and
 network fetchers for public sources.
 
 Fetchers here are plain functions with no Streamlit dependency (engineering
@@ -18,7 +18,7 @@ import io
 import pandas as pd
 import requests
 
-from src.core.paths import resolve_data_file
+from src.core.paths import dataset_dir, resolve_data_file
 
 TREASURY_NOMINAL_URL = (
     "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/"
@@ -41,13 +41,13 @@ def read_dated_csv(path: str, date_col: str = "Date") -> pd.DataFrame:
     return pd.read_csv(path, parse_dates=[date_col])
 
 
-def load_dataset(filename: str) -> tuple[pd.DataFrame, bool]:
+def load_dataset(filename: str, folder: str) -> tuple[pd.DataFrame, bool]:
     """
-    Load `filename` from data/local/ if present, otherwise data/sample/.
-    Returns (df, is_sample) so the page can show a sample-data note.
+    Load `filename` from data/local/ if present, otherwise from the dataset's
+    committed folder data/<folder>/. Returns (df, is_committed).
     """
-    path, is_sample = resolve_data_file(filename)
-    return read_dated_csv(path), is_sample
+    path, is_committed = resolve_data_file(filename, dataset_dir(folder))
+    return read_dated_csv(path), is_committed
 
 
 # ---------- Treasury.gov ----------

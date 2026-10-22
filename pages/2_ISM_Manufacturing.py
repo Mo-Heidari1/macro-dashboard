@@ -3,18 +3,15 @@ ISM Manufacturing Index — headline PMI trend, sub-index heatmap, sub-index
 trend selector, sector growth/contraction table, composite sanity-check,
 and a monthly manual-update form.
 
-ISM's data is proprietary and licensed, so the full history is kept in
-data/local/ (git-ignored). Without it the page runs on the committed sample:
-the real headline PMI for recent months plus illustrative (synthetic)
-sub-indices and sector rankings, all labelled as such.
+Data: ISM Manufacturing Report On Business (committed in data/ism/); the
+full source attribution (config SOURCE) is shown on the page.
 """
-
-import os
 
 import pandas as pd
 import streamlit as st
 
 from src.core import charts, paths
+from src.core.credentials import flag_enabled
 from src.core.signals import format_zscore
 from src.core.transforms import last_complete_row, last_valid
 from src.modules.ism_manufacturing import config as cfg
@@ -30,15 +27,12 @@ from src.modules.ism_manufacturing.calculations import (
 )
 
 SUBINDEX_COLS = cfg.SUBINDEX_COLS
-ILLUSTRATIVE = "Illustrative data: synthetic values, not ISM figures."
 
 st.set_page_config(page_title="ISM Manufacturing — Macro Dashboard", layout="wide")
 st.title("ISM Manufacturing Index")
 
 df = load_ism_history()
 sectors = load_ism_sectors()
-_, history_is_sample = paths.resolve_data_file(cfg.HISTORY_FILE)
-_, sectors_is_sample = paths.resolve_data_file(cfg.SECTORS_FILE)
 latest_date = df["Date"].max()
 pmi_date, latest_pmi = last_valid(df, "PMI")
 complete_i = last_complete_row(df, SUBINDEX_COLS)
@@ -48,12 +42,6 @@ st.caption(
     f"monthly · {len(df):,} observations since {df['Date'].min():%Y}"
 )
 st.caption(f"Source: {cfg.SOURCE}")
-if history_is_sample:
-    st.info(
-        f"**Sample data.** The headline PMI is ISM's published figure for the last "
-        f"{cfg.SAMPLE_MONTHS} months. Sub-indices and sector rankings are illustrative data "
-        "(synthetic values, not ISM figures). The full licensed history is kept locally only."
-    )
 
 col1, col2 = st.columns([1, 3])
 col1.metric("Headline PMI", f"{latest_pmi:.1f}", classify(latest_pmi))
@@ -68,21 +56,17 @@ col2.caption(
     + (" Extreme reading (above 55 or below 45)." if sig["extreme"] else "")
 )
 
-tab_overview, tab_heatmap, tab_sectors, tab_composite, tab_update = st.tabs(
-    [
-        "Overview",
-        "Sub-Index Heatmap",
-        "Sector Breakdown",
-        "Composite Check",
-        "Add This Month's Data",
-    ]
-)
+# Manual entry changes the committed data file, so it is off unless the
+# ENABLE_DATA_ENTRY flag is set (st.secrets or environment).
+data_entry = flag_enabled(cfg.DATA_ENTRY_FLAG, st.secrets)
+tab_names = ["Overview", "Sub-Index Heatmap", "Sector Breakdown", "Composite Check"]
+if data_entry:
+    tab_names.append("Add This Month's Data")
+tab_overview, tab_heatmap, tab_sectors, tab_composite, *tab_update = st.tabs(tab_names)
 
 # ---------- Overview tab ----------
 with tab_overview:
     st.subheader("Current sub-index values and changes")
-    if history_is_sample:
-        st.caption("Illustrative data for every row except the headline PMI.")
     s = summary_table(df)
 
     def highlight_status(val):
@@ -103,8 +87,6 @@ with tab_overview:
 
     st.subheader("History — pick a sub-index")
     sub_pick = st.selectbox("Sub-Index", SUBINDEX_COLS, index=0)
-    if history_is_sample and sub_pick not in cfg.SAMPLE_REAL_COLUMNS:
-        st.caption(ILLUSTRATIVE)
     hist = df[["Date", sub_pick]].dropna()
     fig = charts.line_chart(
         hist["Date"],
@@ -120,8 +102,6 @@ with tab_overview:
 # ---------- Sub-Index Heatmap tab ----------
 with tab_heatmap:
     st.subheader("Sub-index heatmap")
-    if history_is_sample:
-        st.caption("Illustrative data for every row except the headline PMI.")
     n_months = st.slider(
         "Months to show", min_value=12, max_value=min(120, len(df)), value=36, step=12
     )
@@ -140,8 +120,6 @@ with tab_heatmap:
 # ---------- Sector Breakdown tab ----------
 with tab_sectors:
     st.subheader("Industry growth/contraction by category")
-    if sectors_is_sample:
-        st.caption(ILLUSTRATIVE)
     available_months = sorted(sectors["Date"].unique(), reverse=True)
     st.caption(
         f"As of {pd.Timestamp(available_months[0]):%B %Y} (latest month with sector data)"
@@ -177,11 +155,6 @@ with tab_composite:
         "exactly — ISM applies seasonal adjustment on top of this simple weighted sum — "
         "but it should track closely, which is the point: it shows how the index is built."
     )
-    if history_is_sample:
-        st.caption(
-            "Illustrative data: the recomputed line uses synthetic sub-indices; "
-            "only the published PMI line is real."
-        )
     recomp = recompute_pmi_from_subindices(df).tail(24)
     fig = charts.multi_line_chart(
         [
@@ -206,20 +179,14 @@ with tab_composite:
     )
 
 # ---------- Add This Month's Data tab ----------
-with tab_update:
-    st.subheader("Add this month's ISM report")
-    st.caption(
-        "No free API exists for ISM's data — it's a proprietary, licensed report. "
-        "Type in the numbers from ismworld.org's monthly Report on Business, same as "
-        "you would in the source Excel workbook. This just makes it a form instead of "
-        "a multi-sheet edit."
-    )
-    if history_is_sample:
-        st.info(
-            "Manual entry needs the full local dataset (data/local/), so it is "
-            "turned off while the page runs on sample data."
+if data_entry:
+    with tab_update[0]:
+        st.subheader("Add this month's ISM report")
+        st.caption(
+            "ISM publishes no free data API. Type in the figures from the monthly "
+            "Report On Business on ismworld.org; they are saved to the committed "
+            "data file (data/ism/ism_history.csv), so commit it to publish them."
         )
-    else:
         with st.form("ism_update_form"):
             next_month = (latest_date + pd.DateOffset(months=1)).replace(day=1)
             report_date = st.date_input("Report month", value=next_month)
@@ -242,8 +209,8 @@ with tab_update:
             history = df[df["Date"] != date]
             history = pd.concat([history, pd.DataFrame([new_row])], ignore_index=True)
             history = history.sort_values("Date").reset_index(drop=True)
-            os.makedirs(paths.DATA_LOCAL, exist_ok=True)
-            history.to_csv(paths.local_path(cfg.HISTORY_FILE), index=False)
+            out_path = paths.dataset_path(cfg.DATA_FOLDER, cfg.HISTORY_FILE)
+            history.to_csv(out_path, index=False)
             st.success(
                 f"Saved {date.strftime('%B %Y')}. Refresh the page to see it reflected everywhere."
             )

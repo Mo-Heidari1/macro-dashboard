@@ -27,24 +27,31 @@ from src.core.transforms import (
 
 
 def test_paths_are_built_from_repo_root():
-    assert paths.DATA_LOCAL.startswith(paths.ROOT)
-    assert paths.DATA_SAMPLE.startswith(paths.ROOT)
-    assert paths.local_path("x.csv") == os.path.join(
-        paths.ROOT, "data", "local", "x.csv"
-    )
+    assert paths.DATA_LOCAL == os.path.join(paths.ROOT, "data", "local")
+    assert paths.DATA_ISM == os.path.join(paths.ROOT, "data", "ism")
+    assert paths.DATA_YIELDS == os.path.join(paths.ROOT, "data", "yields")
+    assert paths.dataset_path("ism", "x.csv") == os.path.join(paths.DATA_ISM, "x.csv")
+    assert paths.local_path("x.csv") == os.path.join(paths.DATA_LOCAL, "x.csv")
 
 
-def test_resolve_prefers_local_then_sample(tmp_path):
-    local, sample = tmp_path / "local", tmp_path / "sample"
+def test_data_folders_hold_their_datasets():
+    assert os.path.exists(paths.dataset_path("ism", "ism_history.csv"))
+    assert os.path.exists(paths.dataset_path("ism", "ism_sectors.csv"))
+    assert os.path.exists(paths.dataset_path("yields", "yields_history.csv"))
+    assert not os.path.exists(os.path.join(paths.DATA_DIR, "sample"))
+
+
+def test_resolve_prefers_local_override_then_committed(tmp_path):
+    local, committed = tmp_path / "local", tmp_path / "yields"
     local.mkdir()
-    sample.mkdir()
-    (sample / "a.csv").write_text("Date\n")
-    assert paths.resolve_data_file("a.csv", str(local), str(sample)) == (
-        str(sample / "a.csv"),
+    committed.mkdir()
+    (committed / "a.csv").write_text("Date\n")
+    assert paths.resolve_data_file("a.csv", str(committed), str(local)) == (
+        str(committed / "a.csv"),
         True,
     )
     (local / "a.csv").write_text("Date\n")
-    assert paths.resolve_data_file("a.csv", str(local), str(sample)) == (
+    assert paths.resolve_data_file("a.csv", str(committed), str(local)) == (
         str(local / "a.csv"),
         False,
     )

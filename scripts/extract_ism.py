@@ -1,17 +1,19 @@
 """
-Extraction: ISM source workbook -> CSV files in data/local/.
+Extraction: ISM source workbook (data/local/) -> committed CSVs in data/ism/.
 
 Full rebuild from the configured workbook (SOURCE_WORKBOOK):
     python scripts/extract_ism.py
 Import specific months from a newer workbook, keeping everything else:
-    python scripts/extract_ism.py --workbook data/local/<file>.xlsx         --months 2026-07,2026-08,2026-09 --report <folder>
+    python scripts/extract_ism.py --workbook data/local/<file>.xlsx
+        --months 2026-07,2026-08,2026-09 --report <folder>
 
 In --months mode the requested months are added (or replaced), revisions the
 workbook made to months already stored are applied, and nothing is deleted;
 every revision and every difference not applied is printed and, with
 --report, saved as CSV.
 
-Produces, in data/local/ (git-ignored, the data is licensed):
+Produces the committed data files in data/ism/ (sector rankings only from
+SECTORS_START on; the workbook itself stays in data/local/, git-ignored):
 - ism_history.csv     wide format, one row per month, one column per
                        sub-index (mirrors the 'Heat Map Summary' sheet shape).
                        This is the file load_ism_history()
@@ -175,8 +177,10 @@ def main():
     args = parser.parse_args()
 
     history, sectors = extract_workbook(args.workbook)
-    history_path = paths.local_path(cfg.HISTORY_FILE)
-    sectors_path = paths.local_path(cfg.SECTORS_FILE)
+    # Only rankings from SECTORS_START on are ever written (and committed).
+    sectors = sectors[sectors["Date"] >= pd.Timestamp(cfg.SECTORS_START)]
+    history_path = paths.dataset_path(cfg.DATA_FOLDER, cfg.HISTORY_FILE)
+    sectors_path = paths.dataset_path(cfg.DATA_FOLDER, cfg.SECTORS_FILE)
 
     if args.months:
         months = [pd.Timestamp(m + "-01") for m in args.months.split(",")]
@@ -206,7 +210,7 @@ def main():
                     os.path.join(args.report, f"ism_import_{name}.csv"), index=False
                 )
 
-    os.makedirs(paths.DATA_LOCAL, exist_ok=True)
+    os.makedirs(paths.dataset_dir(cfg.DATA_FOLDER), exist_ok=True)
     history.to_csv(history_path, index=False)
     print(
         f"Wrote {history_path}: {len(history)} rows, "

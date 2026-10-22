@@ -4,18 +4,28 @@ Calculations read everything from here; nothing is hardcoded there.
 """
 
 # ---------- data ----------
+# Committed files in data/ism/. The source workbook stays in data/local/
+# (git-ignored).
+DATA_FOLDER = "ism"
 HISTORY_FILE = "ism_history.csv"
 SECTORS_FILE = "ism_sectors.csv"
 SOURCE_WORKBOOK = "ISM_Manufacturing_Index_Updated2.xlsx"  # through Sep 2026
-LICENCE = "R"  # proprietary: full history in data/local/, sample in data/sample/
-SOURCE = "Institute for Supply Management (ISM), Manufacturing ISM Report On Business"
+LICENCE = "A"  # committed from public releases, with attribution
+# Attribution shown on the page as "Source: " + SOURCE (and quoted in the docs).
+# Update the end month when new months are added.
+SOURCE = (
+    "ISM Manufacturing Report On Business (Institute for Supply Management). "
+    "1948–Sep 2026: ISM monthly releases (ismworld.org), with historical data "
+    "via Investing.com and Quandl."
+)
 
-# Columns in the committed sample that are real ISM figures. Every other
-# sample column (and the whole sectors sample) is synthetic, illustrative data.
-SAMPLE_REAL_COLUMNS = ["PMI"]
-SAMPLE_MONTHS = 36
-SAMPLE_SECTOR_MONTHS = 3
-SAMPLE_SEED = 20260630
+# The page's manual-entry form is shown only when this flag is true in
+# st.secrets or the environment; visitors otherwise see charts only.
+DATA_ENTRY_FLAG = "ENABLE_DATA_ENTRY"
+
+# Only sector rankings from this month on are committed; older rows, industry
+# comment text and workbooks never are.
+SECTORS_START = "2026-04-01"
 
 # All 11 published series, headline first, in the same order as the
 # workbook's Heat Map Summary sheet.
@@ -65,7 +75,7 @@ DIRECTION_BAND = 1.0  # averages within ±1.0 point of each other count as flat
 DIRECTION_LABELS = {"up": "improving", "down": "deteriorating", "flat": "flat"}
 
 ZSCORE_WINDOW_MONTHS = 120  # trailing 10 years
-ZSCORE_MIN_PERIODS = 120  # a full 10 years; the 36-month sample shows n/a
+ZSCORE_MIN_PERIODS = 120  # a full 10 years
 
 # Regime quadrant = PMI level vs 50 x momentum trend, with hysteresis:
 # - momentum outside ±DIRECTION_BAND: trend = sign of the 3m-vs-prior-3m change

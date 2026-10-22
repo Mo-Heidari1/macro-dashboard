@@ -73,7 +73,9 @@ def main():
     for item in args.columns.split(","):
         columns += COLUMN_GROUPS.get(item.strip().lower(), [item.strip()])
 
-    csv_path, _ = paths.resolve_data_file(cfg.HISTORY_FILE)
+    csv_path, _ = paths.resolve_data_file(
+        cfg.HISTORY_FILE, paths.dataset_dir(cfg.DATA_FOLDER)
+    )
     history = (
         pd.read_csv(csv_path, parse_dates=["Date"])
         .sort_values("Date")

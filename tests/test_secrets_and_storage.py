@@ -6,7 +6,7 @@ import os
 import pytest
 
 from src.core import paths
-from src.core.credentials import MissingSecretError, get_secret
+from src.core.credentials import MissingSecretError, flag_enabled, get_secret
 
 KEY = "FRED_API_KEY"
 
@@ -67,3 +67,31 @@ def test_secrets_toml_with_byte_order_mark(tmp_path, monkeypatch):
     secrets.write_bytes(bom + f'{KEY} = "from-bom-file"\n'.encode())
     monkeypatch.delenv(KEY, raising=False)
     assert get_secret(KEY, str(secrets)) == "from-bom-file"
+
+
+class _NoSecretsFile:
+    def get(self, name):
+        raise FileNotFoundError("No secrets files found")
+
+
+@pytest.mark.parametrize(
+    "env, secrets, expected",
+    [
+        (None, None, False),
+        (None, {}, False),
+        (None, _NoSecretsFile(), False),
+        ("true", None, True),
+        ("TRUE", {}, True),
+        ("1", None, True),
+        ("false", {}, False),
+        (None, {"FLAG": True}, True),
+        (None, {"FLAG": "yes"}, True),
+        (None, {"FLAG": False}, False),
+        ("false", {"FLAG": True}, True),  # either source can enable it
+    ],
+)
+def test_flag_enabled(monkeypatch, env, secrets, expected):
+    monkeypatch.delenv("FLAG", raising=False)
+    if env is not None:
+        monkeypatch.setenv("FLAG", env)
+    assert flag_enabled("FLAG", secrets) is expected

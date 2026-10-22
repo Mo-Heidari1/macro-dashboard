@@ -12,7 +12,7 @@ they would end up in shell history.
 What it does:
 1. Pulls the current year's nominal and TIPS (real) par yield curves from Treasury.gov
 2. Pulls the effective Fed Funds rate (EFFR) from FRED
-3. Merges them and appends any new dates onto data/sample/yields_history.csv
+3. Merges them and appends any new dates onto data/yields/yields_history.csv
    (or data/local/ if a local copy exists), deduping on Date
 """
 
@@ -67,7 +67,9 @@ def main():
         print(exc)
         sys.exit(1)
     year = pd.Timestamp.today().year
-    csv_path, _ = paths.resolve_data_file(cfg.HISTORY_FILE)
+    csv_path, _ = paths.resolve_data_file(
+        cfg.HISTORY_FILE, paths.dataset_dir(cfg.DATA_FOLDER)
+    )
 
     print(f"Fetching {year} data from Treasury.gov and FRED...")
     fresh = build_latest_snapshot(year, fred_api_key)

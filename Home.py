@@ -12,7 +12,7 @@ a cross-indicator summary + entry point.
 import pandas as pd
 import streamlit as st
 
-from src.core import charts, paths
+from src.core import charts
 from src.core.transforms import change_over, last_complete_row, last_valid
 from src.modules.ism_manufacturing import config as ism_cfg
 from src.modules.ism_manufacturing.calculations import classify, load_ism_history
@@ -25,7 +25,6 @@ st.caption("US Treasury yields + ISM Manufacturing Index — more indicators to 
 
 yields_df = load_history()
 ism_df = load_ism_history()
-_, ism_is_sample = paths.resolve_data_file(ism_cfg.HISTORY_FILE)
 
 # Each figure comes from its series' last populated row, never a blank tail.
 ten_date, ten_yield = last_valid(yields_df, "10yr")
@@ -44,10 +43,6 @@ col2.metric("2s10s Spread", f"{spread_2s10s:+.2f} pp")
 col2.caption(f"As of {curve_row['Date']:%Y-%m-%d}")
 col3.metric("ISM Manufacturing PMI", f"{pmi:.1f}", classify(pmi))
 col3.caption(f"As of {pmi_date:%B %Y}")
-if ism_is_sample:
-    col3.caption(
-        f"Sample data: last {ism_cfg.SAMPLE_MONTHS} months of the published headline PMI."
-    )
 
 st.divider()
 st.subheader("Leading indicator check: ISM PMI vs. 10yr Treasury yield")
@@ -86,4 +81,4 @@ else:
 
 st.divider()
 st.markdown("**Pages:** use the sidebar to open Treasury Yields or ISM Manufacturing.")
-st.caption(f"Sources: {yields_cfg.SOURCE}; {ism_cfg.SOURCE}.")
+st.caption(f"Sources: {yields_cfg.SOURCE}; {ism_cfg.SOURCE}")

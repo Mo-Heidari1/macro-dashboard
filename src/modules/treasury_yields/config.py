@@ -4,6 +4,7 @@ Calculations read everything from here; nothing is hardcoded there.
 """
 
 # ---------- data ----------
+DATA_FOLDER = "yields"  # committed in data/yields/
 HISTORY_FILE = "yields_history.csv"
 LICENCE = "P"  # public data: the committed file is the full history, not a sample
 SOURCE = (
