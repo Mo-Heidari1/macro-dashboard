@@ -33,9 +33,9 @@ from src.modules.ism_manufacturing import config as cfg
 
 
 def load_ism_history(path: str | None = None) -> pd.DataFrame:
-    """Load the monthly ISM sub-index series (data/local, else data/sample), sorted by date."""
+    """Load the committed monthly ISM sub-index series, sorted by date."""
     if path is None:
-        path, _ = paths.resolve_data_file(cfg.HISTORY_FILE)
+        path = paths.sample_path(cfg.HISTORY_FILE)
     df = pd.read_csv(path, parse_dates=["Date"])
     return df.sort_values("Date").reset_index(drop=True)
 
@@ -43,7 +43,7 @@ def load_ism_history(path: str | None = None) -> pd.DataFrame:
 def load_ism_sectors(path: str | None = None) -> pd.DataFrame:
     """Load the long-format sector growth/contraction data (Category, Date, Industry, Direction, Score)."""
     if path is None:
-        path, _ = paths.resolve_data_file(cfg.SECTORS_FILE)
+        path = paths.sample_path(cfg.SECTORS_FILE)
     return pd.read_csv(path, parse_dates=["Date"])
 
 

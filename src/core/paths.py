@@ -5,7 +5,8 @@ other machine.
 
 Data lives in two folders:
 - data/local/   full or proprietary history (git-ignored)
-- data/sample/  small public-safe samples, plus full public datasets (committed)
+- data/sample/  committed data: full public datasets (Treasury yields, ISM
+                compiled from public releases) and samples of restricted data
 """
 
 import os

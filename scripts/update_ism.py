@@ -29,8 +29,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.core import paths
 from src.modules.ism_manufacturing.config import HISTORY_FILE, SUBINDEX_COLS
 
-# Proprietary data: always read and write the full local history.
-CSV_PATH = paths.local_path(HISTORY_FILE)
+# The committed history file (compiled from ISM's public monthly releases).
+CSV_PATH = paths.sample_path(HISTORY_FILE)
 
 # CLI flag name -> ism_history.csv column name
 ARG_TO_COL = {

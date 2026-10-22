@@ -1,5 +1,5 @@
-"""Tests for the ISM Manufacturing module. Run on the committed sample; the
-local-vs-sample check runs only where the licensed full history exists."""
+"""Tests for the ISM Manufacturing module, run on the committed data files.
+The workbook cross-check runs only where the local source workbook exists."""
 
 import os
 
@@ -27,8 +27,27 @@ from src.modules.ism_manufacturing.calculations import (
 
 
 @pytest.fixture(scope="module")
-def sample() -> pd.DataFrame:
-    return load_ism_history(paths.sample_path(cfg.HISTORY_FILE))
+def committed() -> pd.DataFrame:
+    return load_ism_history()
+
+
+@pytest.fixture(scope="module")
+def workbook() -> str:
+    path = paths.local_path(cfg.SOURCE_WORKBOOK)
+    if not os.path.exists(path):
+        pytest.skip("local source workbook not present")
+    return path
+
+
+def _script(name: str):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        name, os.path.join(paths.ROOT, "scripts", f"{name}.py")
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _pmi_frame(values, start="2024-01-01") -> pd.DataFrame:
@@ -57,21 +76,37 @@ def _pmi_frame(values, start="2024-01-01") -> pd.DataFrame:
         ("2025-12-01", 47.9),
     ],
 )
-def test_known_headline_pmi(sample, month, expected):
-    assert sample.set_index("Date").loc[month, "PMI"] == pytest.approx(expected)
+def test_known_headline_pmi(committed, month, expected):
+    assert committed.set_index("Date").loc[month, "PMI"] == pytest.approx(expected)
 
 
-def test_sample_pmi_matches_local_history(sample, has_local_ism):
-    if not has_local_ism:
-        pytest.skip("licensed full ISM history not present")
-    full = load_ism_history(paths.local_path(cfg.HISTORY_FILE)).set_index("Date")
-    s = sample.set_index("Date")
-    pd.testing.assert_series_equal(s["PMI"], full.loc[s.index, "PMI"])
+def test_committed_history_matches_workbook(workbook, committed):
+    # every month of every sub-index sheet, plus the Heat Map Summary sheet
+    validate = _script("validate_ism")
+    series, bad = validate.compare_series(workbook, committed)
+    assert series["mismatches"].sum() == 0 and not bad
+    assert (series["only in workbook"] == 0).all() and (
+        series["only in csv"] == 0
+    ).all()
+    cells, hm_bad, _ = validate.compare_heatmap(workbook, committed)
+    assert cells > 0 and hm_bad == 0
 
 
-def test_sample_shape(sample):
-    assert len(sample) == cfg.SAMPLE_MONTHS
-    assert list(sample.columns) == ["Date"] + cfg.SUBINDEX_COLS
+def test_committed_sectors_match_workbook(workbook):
+    validate = _script("validate_ism")
+    wb_s, _ = validate.read_sectors(workbook)
+    wb_s = wb_s[wb_s["Date"] >= pd.Timestamp(cfg.SECTORS_START)]
+    m = wb_s.merge(load_ism_sectors(), on=["Category", "Date", "Industry"], how="inner")
+    assert len(m) == len(wb_s)  # every workbook row in the window is committed
+    assert (m["Direction_x"] == m["Direction_y"]).all()
+    assert (m["Score_x"] == m["Score_y"]).all()
+
+
+def test_committed_history_shape(committed):
+    assert list(committed.columns) == ["Date"] + cfg.SUBINDEX_COLS
+    assert committed["Date"].min() == pd.Timestamp("1948-01-01")
+    assert committed["Date"].is_monotonic_increasing and committed["Date"].is_unique
+    assert committed[cfg.SUBINDEX_COLS].iloc[-1].notna().all()  # all 11 series
 
 
 # ---------- calculations ----------
@@ -115,9 +150,9 @@ def test_summary_table_mom_yoy():
     )
 
 
-def test_heatmap_and_sectors_on_sample(sample):
-    assert heatmap_data(sample, 12).shape == (12, len(cfg.SUBINDEX_COLS))
-    sectors = load_ism_sectors(paths.sample_path(cfg.SECTORS_FILE))
+def test_heatmap_and_sectors_on_committed_data(committed):
+    assert heatmap_data(committed, 12).shape == (12, len(cfg.SUBINDEX_COLS))
+    sectors = load_ism_sectors()
     ranked = sector_rankings(sectors, sectors["Date"].max(), "PMI")
     assert not ranked.empty and ranked["Score"].is_monotonic_decreasing
 
@@ -198,8 +233,8 @@ def test_signal_skips_month_without_headline():
     assert sig["level"] == 52.0 and sig["change"] == 1.0
 
 
-def test_signal_schema_on_sample(sample):
-    sig = get_signal(sample)
+def test_signal_schema_on_committed_data(committed):
+    sig = get_signal(committed)
     assert validate_signal(sig, cfg.DIRECTION_LABELS, cfg.REGIME_LABELS) == []
     assert sig["as_of"] == "2026-09-01" and sig["level"] == 54.5
 
@@ -236,22 +271,45 @@ def test_sector_rankings_break_ties_by_industry_regardless_of_input_order():
         assert sector_rankings(shuffled, "2026-06-01")["Industry"].tolist() == expected
 
 
-def test_zscore_needs_ten_years(sample):
+def test_zscore_computes_on_full_history(committed):
     assert cfg.ZSCORE_MIN_PERIODS == 120
-    assert get_signal(sample)["zscore"] is None  # 36 months only
-    long = _pmi_frame(list(np.linspace(45, 55, 120)))
-    assert get_signal(long)["zscore"] is not None
+    z = get_signal(committed)["zscore"]
+    assert isinstance(z, float)
+    pmi = committed["PMI"].dropna().tail(120)
+    assert z == pytest.approx(round((pmi.iloc[-1] - pmi.mean()) / pmi.std(ddof=1), 2))
+    assert get_signal(_pmi_frame(list(np.linspace(45, 55, 119))))["zscore"] is None
 
 
-def test_sample_ends_september_2026_with_synthetic_sectors(sample):
-    assert sample["Date"].min() == pd.Timestamp("2023-10-01")
-    assert sample["Date"].max() == pd.Timestamp("2026-09-01")
-    sectors = load_ism_sectors(paths.sample_path(cfg.SECTORS_FILE))
-    assert sorted(sectors["Date"].dt.strftime("%Y-%m").unique()) == [
-        "2026-07",
-        "2026-08",
-        "2026-09",
+def test_committed_sectors_only_from_april_2026():
+    sectors = load_ism_sectors()
+    # no older rows and no comment text: exactly the five ranking columns
+    assert list(sectors.columns) == [
+        "Category",
+        "Date",
+        "Industry",
+        "Direction",
+        "Score",
     ]
+    assert sectors["Date"].min() >= pd.Timestamp(cfg.SECTORS_START)
+    months = sorted(sectors["Date"].dt.strftime("%Y-%m").unique())
+    assert months == ["2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09"]
+    assert sectors.groupby("Date").size().eq(7 * 18).all()
+
+
+def test_manual_entry_writes_committed_file(tmp_path, monkeypatch, committed):
+    update_ism = _script("update_ism")
+    assert update_ism.CSV_PATH == paths.sample_path(cfg.HISTORY_FILE)
+    target = tmp_path / "ism_history.csv"
+    committed.to_csv(target, index=False)
+    monkeypatch.setattr(update_ism, "CSV_PATH", str(target))
+    values = {"Date": "2026-10-01", **{c: 50.0 for c in cfg.SUBINDEX_COLS}}
+    update_ism.update(values)
+    update_ism.update({**values, "PMI": 51.2})  # same month again: replaces
+    out = pd.read_csv(target, parse_dates=["Date"])
+    assert len(out) == len(committed) + 1
+    assert (
+        out.iloc[-1]["PMI"] == 51.2 and out.iloc[-2]["PMI"] == committed.iloc[-1]["PMI"]
+    )
 
 
 def test_merge_months_imports_and_reports():
@@ -328,9 +386,9 @@ def test_extract_sectors_reads_headers_after_a_spacer_column():
 # ---------- peak note in market_read ----------
 
 
-def test_market_read_notes_drop_from_three_month_peak(sample):
+def test_market_read_notes_drop_from_three_month_peak(committed):
     # Jul-Sep 2026 published PMI: 55.6, 54.6, 54.5; momentum is rising.
-    sig = get_signal(sample)
+    sig = get_signal(committed)
     assert sig["market_read"].startswith(
         "3-month average rising, but off the July peak (55.6). "
     )
