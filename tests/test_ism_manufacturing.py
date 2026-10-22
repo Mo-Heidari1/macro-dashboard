@@ -17,6 +17,7 @@ from src.modules.ism_manufacturing.calculations import (
     load_ism_history,
     load_ism_sectors,
     merge_months,
+    peak_note,
     pmi_regime,
     recompute_pmi_from_subindices,
     regime_history,
@@ -173,8 +174,10 @@ def test_stable_momentum_keeps_prior_regime():
     assert last["regime"] == "Expansion"  # old rule (sign only) gave Slowdown
     sig = get_signal(_pmi_frame(values))
     assert (sig["regime"], sig["direction"]) == ("Expansion", "flat")
-    assert sig["market_read"].startswith("Momentum stable")
-    assert sig["market_read"] == cfg.MARKET_READ_STABLE["Expansion"]
+    # below its 3-month high (Aug 55.0), so the stable read carries a peak note
+    assert sig["market_read"] == (
+        "Off the August peak (55.0). " + cfg.MARKET_READ_STABLE["Expansion"]
+    )
 
 
 def test_stable_momentum_keeps_trend_when_level_crosses_50():
@@ -322,3 +325,58 @@ def test_extract_sectors_reads_headers_after_a_spacer_column():
     out = extract_ism.extract_sectors(ws)
     assert out["Date"].dt.strftime("%Y-%m").tolist() == ["2025-08", "2025-12"]
     assert out["Score"].tolist() == [3, -2]
+
+
+# ---------- peak note in market_read ----------
+
+
+def test_market_read_notes_drop_from_three_month_peak(sample):
+    # Jul-Sep 2026 published PMI: 55.6, 54.6, 54.5; momentum is rising.
+    sig = get_signal(sample)
+    assert sig["market_read"].startswith(
+        "3-month average rising, but off the July peak (55.6). "
+    )
+    assert sig["market_read"].endswith(cfg.MARKET_READ["Expansion"])
+    # text only: regime, direction and thresholds are untouched
+    assert (sig["regime"], sig["direction"]) == ("Expansion", "improving")
+    assert (cfg.DIRECTION_BAND, cfg.DIRECTION_WINDOW, cfg.REGIME_LEVEL) == (
+        1.0,
+        3,
+        50.0,
+    )
+    assert (cfg.EXTREME_HIGH, cfg.EXTREME_LOW) == (55.0, 45.0)
+
+
+def test_no_peak_note_at_a_new_high():
+    sig = get_signal(_pmi_frame([50, 50, 50, 54, 55, 56]))
+    assert sig["market_read"] == cfg.MARKET_READ["Expansion"]
+
+
+def test_peak_note_wording_when_falling_and_when_stable():
+    falling = get_signal(_pmi_frame([56, 55, 54, 52, 52.5, 51]))
+    assert falling["regime"] == "Slowdown"
+    assert falling["market_read"].startswith(
+        "3-month average falling, and off the May peak (52.5). "
+    )
+    stable = get_signal(_pmi_frame([50, 50, 50, 54, 55, 56, 55.5, 55.0, 54.6, 54.2]))
+    assert stable["direction"] == "flat"
+    assert stable["market_read"] == (
+        "Off the August peak (55.0). " + cfg.MARKET_READ_STABLE["Expansion"]
+    )
+
+
+def test_peak_note_uses_latest_tied_peak_and_names_the_year_across_january():
+    tied = peak_note(
+        pd.Series(pd.date_range("2026-07-01", periods=3, freq="MS")),
+        pd.Series([55.0, 55.0, 54.0]),
+        "rising",
+        False,
+    )
+    assert tied == "3-month average rising, but off the August peak (55.0)."
+    across = peak_note(
+        pd.Series(pd.date_range("2026-11-01", periods=3, freq="MS")),
+        pd.Series([53.0, 52.0, 51.5]),
+        "falling",
+        False,
+    )
+    assert across == "3-month average falling, and off the November 2026 peak (53.0)."

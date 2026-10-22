@@ -124,3 +124,13 @@ MARKET_READ_STABLE = {
         "the early-cycle read holds while momentum stays positive."
     ),
 }
+
+# Prefix to market_read when the latest PMI is below its high of the last
+# PEAK_WINDOW_MONTHS months (current month included). Text only: regime,
+# direction and every threshold above are unaffected.
+PEAK_WINDOW_MONTHS = 3
+PEAK_NOTES = {
+    "rising": "3-month average rising, but off the {month} peak ({peak:.1f}).",
+    "falling": "3-month average falling, and off the {month} peak ({peak:.1f}).",
+    "stable": "Off the {month} peak ({peak:.1f}).",
+}

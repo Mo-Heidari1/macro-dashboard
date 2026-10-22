@@ -168,13 +168,36 @@ def regime_history(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def peak_note(
+    dates: pd.Series, values: pd.Series, trend: str, stable: bool
+) -> str | None:
+    """
+    Sentence noting that the latest value is below its high of the last
+    PEAK_WINDOW_MONTHS observations (e.g. "3-month average rising, but off
+    the July peak (55.6)."). None when the latest value is that high.
+    """
+    window = pd.Series(values.to_numpy(), index=pd.to_datetime(dates.to_numpy()))
+    window = window.dropna().tail(cfg.PEAK_WINDOW_MONTHS)
+    if window.empty:
+        return None
+    peak = window.max()
+    if window.iloc[-1] >= peak:
+        return None
+    peak_date = window[window == peak].index[-1]  # most recent if tied
+    as_of = window.index[-1]
+    month = f"{peak_date:%B}" if peak_date.year == as_of.year else f"{peak_date:%B %Y}"
+    template = cfg.PEAK_NOTES["stable" if stable else trend]
+    return template.format(month=month, peak=peak)
+
+
 def get_signal(df: pd.DataFrame) -> dict:
     """
     Headline PMI reading in the shared signal schema, as of the last month
     with PMI populated. Change is MoM; direction and regime use the 3-month
     average vs the prior 3-month average, and inside the ±1.0 band the
     regime keeps the prior month's trend (see regime_history); z-score is
-    vs the trailing ZSCORE_WINDOW_MONTHS.
+    vs the trailing ZSCORE_WINDOW_MONTHS. market_read is prefixed with
+    peak_note() when the PMI is below its recent high.
     """
     col = cfg.SIGNAL_COL
     i = last_complete_row(df, [col])
@@ -191,6 +214,8 @@ def get_signal(df: pd.DataFrame) -> dict:
 
     regime = latest["regime"]
     reads = cfg.MARKET_READ_STABLE if latest["stable"] else cfg.MARKET_READ
+    note = peak_note(history["Date"], history[col], latest["trend"], latest["stable"])
+    market_read = reads[regime] if note is None else f"{note} {reads[regime]}"
     return {
         "indicator": cfg.INDICATOR,
         "region": cfg.REGION,
@@ -203,7 +228,7 @@ def get_signal(df: pd.DataFrame) -> dict:
             momentum, cfg.DIRECTION_BAND, cfg.DIRECTION_LABELS
         ),
         "regime": regime,
-        "market_read": reads[regime],
+        "market_read": market_read,
         "extreme": level > cfg.EXTREME_HIGH or level < cfg.EXTREME_LOW,
     }
 
