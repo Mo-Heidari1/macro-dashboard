@@ -38,8 +38,8 @@ src/
       calculations.py        # pure functions: DataFrame in -> DataFrame out
       config.py              # series IDs, thresholds, labels
 data/
-  sample/                    # small public-safe samples (committed)
-  local/                     # full or proprietary data (git-ignored)
+  sample/                    # committed data: public datasets, ISM (attributed), samples
+  local/                     # restricted data and source workbooks (git-ignored)
 scripts/                     # update scripts (manual entry, batch refresh)
 tests/                       # pytest, one test file per module
 ```
@@ -58,9 +58,11 @@ tests/                       # pytest, one test file per module
 7. **Secrets.** API keys come from `st.secrets` (with `os.environ` as a fallback for scripts).
    - Never print, log or commit keys.
    - `.streamlit/secrets.toml` must stay in `.gitignore`.
-8. **Proprietary data stays out of git.** ISM, S&P Global/RatingDog PMI and NFIB history live in `data/local/` (git-ignored). Each such module must:
+8. **Restricted data stays out of git.** S&P Global/RatingDog PMI and NFIB history live in `data/local/` (git-ignored). Each such module must:
    - load `data/local/` if it exists, otherwise `data/sample/`
    - show a small "sample data" note when running on the sample.
+
+   **ISM data is committed** (`data/sample/`), compiled from ISM's public monthly releases, with the attribution line "ISM Manufacturing Report On Business, compiled from public monthly releases" on every page and in the README where it is shown. ISM industry comment text and source workbooks (`.xlsx`/`.xlsm`) are never committed; workbooks stay in `data/local/`.
 9. **Behaviour-preserving refactors.** Any refactor must leave calculation outputs unchanged. Prove it with tests or a before/after comparison.
 
 ## Signal convention (every module)
@@ -90,14 +92,14 @@ Thresholds and regime labels live in each module's `config.py`. Never hardcode t
 ## Module roadmap
 
 Status: ✅ built · 🔨 in progress · ⬜ planned.
-Licence: **P** = public data, can be committed · **R** = restricted/proprietary, local only, sample in repo.
+Licence: **P** = public data, can be committed · **A** = compiled from public releases, committed with attribution (no comment text or workbooks) · **R** = restricted/proprietary, local only, sample in repo.
 
 ### US — leading
 | # | Module | Status | Source | Lic. | Key outputs |
 |---|---|---|---|---|---|
 | 1 | Treasury Yields & Curve | ✅ | Treasury.gov, FRED | P | curve snapshot, 2s10s / 3m10y, real yields (DFII10), curve regime (bull/bear steepener/flattener) |
-| 2 | ISM Manufacturing | ✅ | manual entry from ISM releases | R | headline + components, new orders − inventories, sector breadth |
-| 3 | ISM Services | ⬜ | manual entry from ISM releases | R | same structure as module 2; reuse its code |
+| 2 | ISM Manufacturing | ✅ | manual entry from ISM releases | A | headline + components, new orders − inventories, sector breadth |
+| 3 | ISM Services | ⬜ | manual entry from ISM releases | A | same structure as module 2; reuse its code |
 | 4 | Credit Spreads | ⬜ | FRED: BAMLC0A0CM (IG OAS), BAMLH0A0HYM2 (HY OAS) | P* | IG/HY OAS level, change, z-score, HY−IG differential |
 | 5 | Fed Policy & Liquidity | ⬜ | FRED: DFF, M2SL, WALCL | P | effective Fed Funds rate, M2 YoY, Fed balance sheet change, real policy rate |
 | 6 | Consumer Sentiment (UMCSI) | ⬜ | FRED: UMCSENT | P* | level, expectations vs current conditions |
@@ -168,7 +170,7 @@ Identify CFTC contracts by brute-force exact matching on open interest, longs an
 
 ## Don'ts
 
-1. Don't commit anything in `data/local/`, secrets, notebooks with outputs, or files over 5 MB.
+1. Don't commit anything in `data/local/`, secrets, workbooks (`.xlsx`/`.xlsm`), ISM industry comment text, notebooks with outputs, or files over 5 MB.
 2. Don't put trading-strategy logic or signals from private strategies in this repo.
 3. Don't reproduce text from paid course material in page copy. All explanations should be written fresh.
 4. Don't silently change a threshold or formula. Flag every change in the summary.

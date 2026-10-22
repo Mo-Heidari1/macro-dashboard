@@ -26,6 +26,9 @@ weighted components. The module's signal places the PMI in one of four
 regimes (Expansion, Slowdown, Contraction, Recovery) from its level versus 50
 and its three-month momentum.
 
+*Source: ISM Manufacturing Report On Business, compiled from public monthly
+releases.*
+
 The landing page sets the PMI against the 10-year yield as a cross-check
 between the growth signal and the rates market.
 
@@ -40,12 +43,12 @@ cross-indicator regime scorecard on the landing page.
 ## Data and licensing
 
 Public series (Treasury.gov, FRED) are committed in full under
-`data/sample/`. ISM data is proprietary: the full history stays in
-`data/local/` (git-ignored), and the public deployment runs on a small
-sample — the last 36 months of the published headline PMI, with sub-indices
-and industry rankings replaced by clearly labelled illustrative values. See
-[`data/README.md`](data/README.md) for each file's source, licence and update
-frequency.
+`data/sample/`. ISM data is committed there too: the headline PMI and all
+ten sub-indices since 1948, and industry growth/contraction rankings from
+April 2026, attributed as "ISM Manufacturing Report On Business, compiled
+from public monthly releases". ISM industry comment text and the source
+workbooks are never committed. See [`data/README.md`](data/README.md) for
+each file's source, licence and update frequency.
 
 ## Structure
 
@@ -54,8 +57,8 @@ Home.py                      landing page: cross-indicator summary
 pages/                       one page per indicator (UI only)
 src/core/                    shared paths, loaders, transforms, charts, signal schema
 src/modules/<indicator>/     config.py (series, thresholds, labels) + calculations.py (pure functions)
-data/sample/                 committed public data and samples
-data/local/                  full / proprietary data (git-ignored)
+data/sample/                 committed data (public series, attributed ISM data)
+data/local/                  restricted data and source workbooks (git-ignored)
 scripts/                     data refresh and manual-entry tools
 tests/                       pytest suite
 ```
@@ -78,12 +81,13 @@ Community Cloud, select Python 3.12 under the app's advanced settings.
   FRED key (https://fred.stlouisfed.org/docs/api/api_key.html) from the
   `FRED_API_KEY` environment variable or `.streamlit/secrets.toml`; keys are
   never passed on the command line.
-- **ISM Manufacturing:** ISM publishes no free, terms-compliant API, so each
-  month's Report On Business figures are entered by hand — either in the ISM
-  page's "Add This Month's Data" tab (local data only) or with
-  `python scripts/update_ism.py` (interactive, or pass the values as flags).
-  `scripts/extract_ism.py` rebuilds the local CSVs from the source workbook,
-  and `scripts/build_ism_sample.py` regenerates the committed sample.
+- **ISM Manufacturing:** ISM publishes no free data API, so each month's
+  Report On Business figures are entered by hand — in the ISM page's "Add
+  This Month's Data" tab or with `python scripts/update_ism.py` (interactive,
+  or pass the values as flags). Both write the committed
+  `data/sample/ism_history.csv`. `scripts/extract_ism.py --months` imports
+  months from the local source workbook, and `scripts/validate_ism.py`
+  checks the committed files against it.
 
 Stored data is CSV only. An earlier pickle-based version broke across
 machines on a pandas/numpy version mismatch when unpickling `datetime64`
