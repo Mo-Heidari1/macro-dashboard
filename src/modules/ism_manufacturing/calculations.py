@@ -206,3 +206,107 @@ def get_signal(df: pd.DataFrame) -> dict:
         "market_read": reads[regime],
         "extreme": level > cfg.EXTREME_HIGH or level < cfg.EXTREME_LOW,
     }
+
+
+def merge_months(
+    current: pd.DataFrame,
+    incoming: pd.DataFrame,
+    keys: list[str],
+    value_cols: list[str],
+    months: list[pd.Timestamp],
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Merge a fresh workbook extract into the stored CSV.
+
+    - rows dated in `months` are taken from `incoming` (new or replaced)
+    - rows in both: cells the workbook revised (value -> different value,
+      or empty -> value) are applied; cells the workbook left empty are kept
+    - rows only in `current` are kept; earlier rows only in `incoming` are
+      not imported
+
+    Returns (merged, report). The report lists every applied revision and
+    every difference not applied: kind is one of "imported", "revised",
+    "kept: empty in workbook", "kept: not in workbook",
+    "skipped: earlier month not in CSV".
+    """
+    months = {pd.Timestamp(m) for m in months}
+    cur = current.set_index(keys)
+    inc = incoming.set_index(keys)
+    in_months = inc.index.get_level_values("Date").isin(list(months))
+    report = []
+
+    def key_dict(k):
+        return dict(zip(keys, k if isinstance(k, tuple) else (k,)))
+
+    for k in inc.index[in_months]:
+        report.append(
+            {
+                **key_dict(k),
+                "kind": "imported",
+                "column": None,
+                "csv": None,
+                "workbook": None,
+            }
+        )
+
+    merged = cur[~cur.index.get_level_values("Date").isin(list(months))].copy()
+    for k in merged.index.intersection(inc.index):
+        for col in value_cols:
+            old, new = merged.at[k, col], inc.at[k, col]
+            if pd.isna(new) and pd.isna(old):
+                continue
+            if pd.isna(new):
+                kind = "kept: empty in workbook"
+            elif pd.isna(old) or old != new:
+                kind = "revised"
+                merged.at[k, col] = new
+            else:
+                continue
+            report.append(
+                {
+                    **key_dict(k),
+                    "kind": kind,
+                    "column": col,
+                    "csv": old,
+                    "workbook": new,
+                }
+            )
+    for k in merged.index.difference(inc.index):
+        report.append(
+            {
+                **key_dict(k),
+                "kind": "kept: not in workbook",
+                "column": None,
+                "csv": None,
+                "workbook": None,
+            }
+        )
+    earlier_only = inc.index[~in_months].difference(cur.index)
+    for k in earlier_only:
+        report.append(
+            {
+                **key_dict(k),
+                "kind": "skipped: earlier month not in CSV",
+                "column": None,
+                "csv": None,
+                "workbook": None,
+            }
+        )
+
+    merged = pd.concat([merged, inc[in_months]]).reset_index()
+    # Keep the stored order: non-date keys in order of first appearance
+    # (sheet order), then by date.
+    rank = {
+        col: {
+            v: i
+            for i, v in enumerate(pd.unique(pd.concat([current[col], incoming[col]])))
+        }
+        for col in keys
+        if col != "Date"
+    }
+    merged = merged.sort_values(
+        keys, key=lambda s: s.map(rank[s.name]) if s.name in rank else s, kind="stable"
+    )
+    merged = merged[current.columns].reset_index(drop=True)
+    cols = keys + ["kind", "column", "csv", "workbook"]
+    return merged, pd.DataFrame(report, columns=cols)

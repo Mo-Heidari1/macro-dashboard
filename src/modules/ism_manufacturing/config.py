@@ -6,7 +6,7 @@ Calculations read everything from here; nothing is hardcoded there.
 # ---------- data ----------
 HISTORY_FILE = "ism_history.csv"
 SECTORS_FILE = "ism_sectors.csv"
-SOURCE_WORKBOOK = "ISM_Manufacturing_Index_Updated.xlsx"
+SOURCE_WORKBOOK = "ISM_Manufacturing_Index_Updated2.xlsx"  # through Sep 2026
 LICENCE = "R"  # proprietary: full history in data/local/, sample in data/sample/
 SOURCE = "Institute for Supply Management (ISM), Manufacturing ISM Report On Business"
 

@@ -1,6 +1,8 @@
 """Tests for the ISM Manufacturing module. Run on the committed sample; the
 local-vs-sample check runs only where the licensed full history exists."""
 
+import os
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -14,6 +16,7 @@ from src.modules.ism_manufacturing.calculations import (
     heatmap_data,
     load_ism_history,
     load_ism_sectors,
+    merge_months,
     pmi_regime,
     recompute_pmi_from_subindices,
     regime_history,
@@ -43,6 +46,9 @@ def _pmi_frame(values, start="2024-01-01") -> pd.DataFrame:
     [
         # Headline PMI as published in ISM's Manufacturing Report On Business;
         # matched against the source workbook's cached values.
+        ("2026-09-01", 54.5),
+        ("2026-08-01", 54.6),
+        ("2026-07-01", 55.6),
         ("2026-06-01", 53.3),
         ("2026-05-01", 54.0),
         ("2026-04-01", 52.7),
@@ -194,7 +200,7 @@ def test_signal_skips_month_without_headline():
 def test_signal_schema_on_sample(sample):
     sig = get_signal(sample)
     assert validate_signal(sig, cfg.DIRECTION_LABELS, cfg.REGIME_LABELS) == []
-    assert sig["as_of"] == "2026-06-01" and sig["level"] == 53.3
+    assert sig["as_of"] == "2026-09-01" and sig["level"] == 54.5
 
 
 def test_summary_yoy_uses_calendar_months_across_a_gap():
@@ -234,3 +240,85 @@ def test_zscore_needs_ten_years(sample):
     assert get_signal(sample)["zscore"] is None  # 36 months only
     long = _pmi_frame(list(np.linspace(45, 55, 120)))
     assert get_signal(long)["zscore"] is not None
+
+
+def test_sample_ends_september_2026_with_synthetic_sectors(sample):
+    assert sample["Date"].min() == pd.Timestamp("2023-10-01")
+    assert sample["Date"].max() == pd.Timestamp("2026-09-01")
+    sectors = load_ism_sectors(paths.sample_path(cfg.SECTORS_FILE))
+    assert sorted(sectors["Date"].dt.strftime("%Y-%m").unique()) == [
+        "2026-07",
+        "2026-08",
+        "2026-09",
+    ]
+
+
+def test_merge_months_imports_and_reports():
+    current = _pmi_frame([50.0, 51.0, 52.0])  # Jan-Mar 2024
+    incoming = _pmi_frame([50.0, 51.5, np.nan, 53.0, 54.0])  # Jan-May 2024
+    months = [pd.Timestamp("2024-04-01"), pd.Timestamp("2024-05-01")]
+    merged, report = merge_months(
+        current, incoming, ["Date"], cfg.SUBINDEX_COLS, months
+    )
+    assert merged["PMI"].tolist() == [50.0, 51.5, 52.0, 53.0, 54.0]
+    kinds = report.groupby("kind").size().to_dict()
+    assert kinds == {"imported": 2, "revised": 1, "kept: empty in workbook": 1}
+    revised = report[report["kind"] == "revised"].iloc[0]
+    assert (revised["Date"], revised["csv"], revised["workbook"]) == (
+        pd.Timestamp("2024-02-01"),
+        51.0,
+        51.5,
+    )
+
+
+def test_merge_months_keeps_rows_missing_from_workbook_and_skips_unimported():
+    cols = ["Category", "Date", "Industry", "Direction", "Score"]
+    current = pd.DataFrame(
+        [("New Orders", "2026-06-01", "Wood", "Growth", 2)], columns=cols
+    )
+    incoming = pd.DataFrame(
+        [
+            ("New Orders", "2025-01-01", "Wood", "Growth", 1),
+            ("New Orders", "2026-07-01", "Wood", "Contraction", -3),
+        ],
+        columns=cols,
+    )
+    for df in (current, incoming):
+        df["Date"] = pd.to_datetime(df["Date"])
+    merged, report = merge_months(
+        current,
+        incoming,
+        ["Category", "Industry", "Date"],
+        ["Direction", "Score"],
+        [pd.Timestamp("2026-07-01")],
+    )
+    assert merged["Date"].dt.strftime("%Y-%m").tolist() == ["2026-06", "2026-07"]
+    assert set(report["kind"]) == {
+        "imported",
+        "kept: not in workbook",
+        "skipped: earlier month not in CSV",
+    }
+
+
+def test_extract_sectors_reads_headers_after_a_spacer_column():
+    # Layout of the Sep-2026 workbook: Aug 2025 in Q/R, spacer S, Dec 2025 in T/U.
+    import datetime
+    import importlib.util
+
+    import openpyxl
+
+    spec = importlib.util.spec_from_file_location(
+        "extract_ism", os.path.join(paths.ROOT, "scripts", "extract_ism.py")
+    )
+    extract_ism = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(extract_ism)
+
+    ws = openpyxl.Workbook().active
+    ws["B3"], ws["C3"] = "ISM Manufacturing", datetime.datetime(2025, 8, 1)
+    # E is a spacer, so Dec 2025 sits in F/G; a fixed C, E, G step skips it.
+    ws["F3"] = datetime.datetime(2025, 12, 1)
+    ws["B5"], ws["C5"], ws["D5"] = "Wood Products", "Growth", 3
+    ws["F5"], ws["G5"] = "Contraction", -2
+    out = extract_ism.extract_sectors(ws)
+    assert out["Date"].dt.strftime("%Y-%m").tolist() == ["2025-08", "2025-12"]
+    assert out["Score"].tolist() == [3, -2]
