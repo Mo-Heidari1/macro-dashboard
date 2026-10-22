@@ -26,8 +26,7 @@ weighted components. The module's signal places the PMI in one of four
 regimes (Expansion, Slowdown, Contraction, Recovery) from its level versus 50
 and its three-month momentum.
 
-*Source: ISM Manufacturing Report On Business, compiled from public monthly
-releases.*
+*Source: ISM Manufacturing Report On Business (Institute for Supply Management). 1948–Sep 2026: ISM monthly releases (ismworld.org), with historical data via Investing.com and Quandl.*
 
 The landing page sets the PMI against the 10-year yield as a cross-check
 between the growth signal and the rates market.
@@ -45,8 +44,7 @@ cross-indicator regime scorecard on the landing page.
 Public series (Treasury.gov, FRED) are committed in full under
 `data/sample/`. ISM data is committed there too: the headline PMI and all
 ten sub-indices since 1948, and industry growth/contraction rankings from
-April 2026, attributed as "ISM Manufacturing Report On Business, compiled
-from public monthly releases". ISM industry comment text and the source
+April 2026, attributed as follows: "Source: ISM Manufacturing Report On Business (Institute for Supply Management). 1948–Sep 2026: ISM monthly releases (ismworld.org), with historical data via Investing.com and Quandl." ISM industry comment text and the source
 workbooks are never committed. See [`data/README.md`](data/README.md) for
 each file's source, licence and update frequency.
 

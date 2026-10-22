@@ -4,13 +4,19 @@ Calculations read everything from here; nothing is hardcoded there.
 """
 
 # ---------- data ----------
-# Committed files in data/sample/ (real data, compiled from ISM's public
-# monthly releases). The source workbook stays in data/local/ (git-ignored).
+# Committed files in data/sample/. The source workbook stays in data/local/
+# (git-ignored).
 HISTORY_FILE = "ism_history.csv"
 SECTORS_FILE = "ism_sectors.csv"
 SOURCE_WORKBOOK = "ISM_Manufacturing_Index_Updated2.xlsx"  # through Sep 2026
 LICENCE = "A"  # committed from public releases, with attribution
-SOURCE = "ISM Manufacturing Report On Business, compiled from public monthly releases"
+# Attribution shown on the page as "Source: " + SOURCE (and quoted in the docs).
+# Update the end month when new months are added.
+SOURCE = (
+    "ISM Manufacturing Report On Business (Institute for Supply Management). "
+    "1948–Sep 2026: ISM monthly releases (ismworld.org), with historical data "
+    "via Investing.com and Quandl."
+)
 
 # The page's manual-entry form is shown only when this flag is true in
 # st.secrets or the environment; visitors otherwise see charts only.

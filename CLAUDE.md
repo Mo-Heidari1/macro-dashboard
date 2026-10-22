@@ -62,7 +62,7 @@ tests/                       # pytest, one test file per module
    - load `data/local/` if it exists, otherwise `data/sample/`
    - show a small "sample data" note when running on the sample.
 
-   **ISM data is committed** (`data/sample/`), compiled from ISM's public monthly releases, with the attribution line "ISM Manufacturing Report On Business, compiled from public monthly releases" on every page and in the README where it is shown. ISM industry comment text and source workbooks (`.xlsx`/`.xlsm`) are never committed; workbooks stay in `data/local/`.
+   **ISM data is committed** (`data/sample/`) with this attribution on every page and in the README where it is shown: "Source: ISM Manufacturing Report On Business (Institute for Supply Management). 1948–Sep 2026: ISM monthly releases (ismworld.org), with historical data via Investing.com and Quandl." (update the end month as months are added). ISM industry comment text and source workbooks (`.xlsx`/`.xlsm`) are never committed; workbooks stay in `data/local/`.
 9. **Behaviour-preserving refactors.** Any refactor must leave calculation outputs unchanged. Prove it with tests or a before/after comparison.
 
 ## Signal convention (every module)
@@ -92,7 +92,7 @@ Thresholds and regime labels live in each module's `config.py`. Never hardcode t
 ## Module roadmap
 
 Status: ✅ built · 🔨 in progress · ⬜ planned.
-Licence: **P** = public data, can be committed · **A** = compiled from public releases, committed with attribution (no comment text or workbooks) · **R** = restricted/proprietary, local only, sample in repo.
+Licence: **P** = public data, can be committed · **A** = committed with a full source attribution (no comment text or workbooks) · **R** = restricted/proprietary, local only, sample in repo.
 
 ### US — leading
 | # | Module | Status | Source | Lic. | Key outputs |

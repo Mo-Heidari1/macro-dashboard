@@ -81,4 +81,4 @@ else:
 
 st.divider()
 st.markdown("**Pages:** use the sidebar to open Treasury Yields or ISM Manufacturing.")
-st.caption(f"Sources: {yields_cfg.SOURCE}; {ism_cfg.SOURCE}.")
+st.caption(f"Sources: {yields_cfg.SOURCE}; {ism_cfg.SOURCE}")

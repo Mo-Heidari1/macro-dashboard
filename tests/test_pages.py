@@ -82,3 +82,18 @@ def test_data_entry_form_shown_when_flag_set(monkeypatch, env, secret):
 def test_data_entry_flag_false_keeps_form_hidden(monkeypatch):
     at = _ism_page(monkeypatch, env="false", secret=False)
     assert not at.get("form")
+
+
+def test_ism_attribution_is_exact():
+    expected = (
+        "Source: ISM Manufacturing Report On Business (Institute for Supply "
+        "Management). 1948\u2013Sep 2026: ISM monthly releases (ismworld.org), with "
+        "historical data via Investing.com and Quandl."
+    )
+    at = _run("pages/2_ISM_Manufacturing.py")
+    assert expected in [c.value for c in at.caption]
+    for doc in ("README.md", "CLAUDE.md", os.path.join("data", "README.md")):
+        with open(os.path.join(paths.ROOT, doc), encoding="utf-8") as f:
+            text = f.read()
+        assert expected in text, doc
+        assert "compiled from public" not in text, doc

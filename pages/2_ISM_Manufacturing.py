@@ -3,8 +3,8 @@ ISM Manufacturing Index — headline PMI trend, sub-index heatmap, sub-index
 trend selector, sector growth/contraction table, composite sanity-check,
 and a monthly manual-update form.
 
-Data: ISM Manufacturing Report On Business, compiled from public monthly
-releases (committed in data/sample/; attribution shown on the page).
+Data: ISM Manufacturing Report On Business (committed in data/sample/); the
+full source attribution (config SOURCE) is shown on the page.
 """
 
 import pandas as pd
