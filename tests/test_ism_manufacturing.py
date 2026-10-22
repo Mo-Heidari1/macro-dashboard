@@ -380,3 +380,27 @@ def test_peak_note_uses_latest_tied_peak_and_names_the_year_across_january():
         False,
     )
     assert across == "3-month average falling, and off the November 2026 peak (53.0)."
+
+
+@pytest.mark.parametrize(
+    "latest, noted",
+    [
+        (55.2, False),  # 0.4 below the 55.6 peak: just under the cut, no note
+        (55.1, True),  # exactly 0.5 below: at the cut, noted
+        (55.0, True),  # 0.6 below: just over the cut, noted
+    ],
+)
+def test_peak_note_needs_minimum_drop(latest, noted):
+    assert cfg.PEAK_NOTE_MIN_DROP == 0.5
+    dates = pd.Series(pd.date_range("2026-07-01", periods=3, freq="MS"))
+    note = peak_note(dates, pd.Series([55.6, 55.4, latest]), "rising", False)
+    assert (note is not None) is noted
+    if noted:
+        assert note == "3-month average rising, but off the July peak (55.6)."
+
+
+def test_small_pullback_keeps_plain_market_read():
+    # momentum rising decisively; latest 0.3 below the 3-month high
+    sig = get_signal(_pmi_frame([50, 50, 50, 54, 55.3, 55.0]))
+    assert sig["regime"] == "Expansion"
+    assert sig["market_read"] == cfg.MARKET_READ["Expansion"]

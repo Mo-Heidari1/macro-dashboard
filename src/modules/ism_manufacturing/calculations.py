@@ -172,16 +172,18 @@ def peak_note(
     dates: pd.Series, values: pd.Series, trend: str, stable: bool
 ) -> str | None:
     """
-    Sentence noting that the latest value is below its high of the last
-    PEAK_WINDOW_MONTHS observations (e.g. "3-month average rising, but off
-    the July peak (55.6)."). None when the latest value is that high.
+    Sentence noting that the latest value is at least PEAK_NOTE_MIN_DROP
+    below its high of the last PEAK_WINDOW_MONTHS observations (e.g.
+    "3-month average rising, but off the July peak (55.6)."). None for a
+    new high or a smaller pullback.
     """
     window = pd.Series(values.to_numpy(), index=pd.to_datetime(dates.to_numpy()))
     window = window.dropna().tail(cfg.PEAK_WINDOW_MONTHS)
     if window.empty:
         return None
     peak = window.max()
-    if window.iloc[-1] >= peak:
+    drop = round(peak - window.iloc[-1], 6)  # avoid float noise at the cut
+    if drop < cfg.PEAK_NOTE_MIN_DROP:
         return None
     peak_date = window[window == peak].index[-1]  # most recent if tied
     as_of = window.index[-1]
