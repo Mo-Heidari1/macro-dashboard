@@ -69,17 +69,9 @@ with tab_overview:
     st.subheader("Current sub-index values and changes")
     s = summary_table(df)
 
-    def highlight_status(val):
-        color = {
-            "Growth": "#c6efce",
-            "Contraction": "#ffc7ce",
-            "Neutral": "#fff2cc",
-        }.get(val, "")
-        return f"background-color: {color}" if color else ""
-
     st.dataframe(
         s.style.format({"Current": "{:.1f}", "MoM": "{:+.1f}", "YoY": "{:+.1f}"}).map(
-            highlight_status, subset=["Status"]
+            charts.status_cell_css, subset=["Status"]
         ),
         use_container_width=True,
         hide_index=True,
@@ -141,7 +133,7 @@ with tab_sectors:
         st.info("No sector data for this month/category combination.")
     else:
         st.dataframe(
-            ranked.style.map(highlight_status, subset=["Direction"]),
+            ranked.style.map(charts.status_cell_css, subset=["Direction"]),
             use_container_width=True,
             hide_index=True,
         )

@@ -264,3 +264,27 @@ def test_format_zscore():
     assert format_zscore(None) == "n/a: needs 10y history"
     assert format_zscore(0.04) == "+0.04"
     assert format_zscore(-1.234) == "-1.23"
+
+
+def _luminance(hex_colour: str) -> float:
+    rgb = [int(hex_colour.lstrip("#")[i : i + 2], 16) / 255 for i in (0, 2, 4)]
+    lin = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb]
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+
+def _contrast(a: str, b: str) -> float:
+    hi, lo = sorted((_luminance(a), _luminance(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+@pytest.mark.parametrize("label", ["Growth", "Contraction", "Neutral"])
+def test_status_cells_set_readable_text_colour(label):
+    css = charts.status_cell_css(label)
+    fill = charts.STATUS_CELL_FILLS[label]
+    assert css == f"background-color: {fill}; color: {charts.STATUS_CELL_TEXT}"
+    assert _contrast(fill, charts.STATUS_CELL_TEXT) >= 4.5  # WCAG AA, normal text
+
+
+def test_other_cells_are_unstyled():
+    assert charts.status_cell_css("N/A") == ""
+    assert charts.status_cell_css(None) == ""
